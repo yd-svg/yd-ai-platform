@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI 數位轉型管理平台</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Noto Sans TC', 'sans-serif'] },
+          colors: {
+            bg: '#F5F0E8',
+            card: '#FFFFFF',
+            'text-main': '#1A1A1A',
+            'text-sub': '#6B7280',
+            border: '#E5E7EB',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Noto Sans TC', sans-serif; background: #F5F0E8; color: #1A1A1A; }
+    .card { background: #fff; border-radius: 12px; border: 1px solid #E5E7EB; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    .btn { padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: background 0.15s; }
+    .btn-primary { background: #1A1A1A; color: #fff; }
+    .btn-primary:hover { background: #333; }
+    .btn-secondary { background: #fff; color: #1A1A1A; border: 1px solid #E5E7EB; }
+    .btn-secondary:hover { background: #F5F0E8; }
+    .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 500; border: 1px solid; }
+    .badge-gray    { background: #F3F4F6; color: #6B7280; border-color: #E5E7EB; }
+    .badge-blue    { background: #EFF6FF; color: #2563EB; border-color: #BFDBFE; }
+    .badge-green   { background: #F0FDF4; color: #16A34A; border-color: #BBF7D0; }
+    .badge-yellow  { background: #FFFBEB; color: #D97706; border-color: #FDE68A; }
+    .badge-red     { background: #FEF2F2; color: #DC2626; border-color: #FECACA; }
+    .nav-tab { padding: 6px 12px; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; color: #6B7280; border: none; background: none; transition: all 0.15s; }
+    .nav-tab:hover { color: #1A1A1A; background: #F3F4F6; }
+    .nav-tab.active { color: #1A1A1A; background: #F3F4F6; }
+    .page { display: none; }
+    .page.active { display: block; }
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 50; align-items: center; justify-content: center; padding: 16px; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: #fff; border-radius: 16px; width: 100%; max-width: 480px; border: 1px solid #E5E7EB; box-shadow: 0 8px 32px rgba(0,0,0,0.12); max-height: 90vh; overflow-y: auto; }
+    .input { width: 100%; border: 1px solid #E5E7EB; border-radius: 8px; padding: 8px 12px; font-size: 14px; font-family: inherit; outline: none; box-sizing: border-box; background: #F9FAFB; }
+    .input:focus { border-color: #9CA3AF; background: #fff; }
+    select.input { appearance: none; }
+    textarea.input { resize: none; }
+    .kanban-col { min-width: 260px; background: #F9FAFB; border-radius: 12px; padding: 12px; border: 1px solid #E5E7EB; }
+    .kanban-card { background: #fff; border: 1px solid #E5E7EB; border-radius: 10px; padding: 14px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+    .project-item { padding: 14px 16px; border-radius: 10px; border: 1px solid #E5E7EB; background: #fff; cursor: pointer; margin-bottom: 8px; transition: all 0.15s; }
+    .project-item:hover { border-color: #9CA3AF; }
+    .project-item.active { border-color: #1A1A1A; background: #F9FAFB; }
+    .divider { border: none; border-top: 1px solid #E5E7EB; margin: 12px 0; }
+    .spinner { width: 24px; height: 24px; border: 3px solid #E5E7EB; border-top-color: #6B7280; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 40px auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .empty { text-align: center; padding: 40px; color: #9CA3AF; font-size: 14px; }
+    .error-msg { background: #FEF2F2; color: #DC2626; padding: 8px 12px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+
+<!-- 導覽列 -->
+<nav style="background:#fff; border-bottom:1px solid #E5E7EB; position:sticky; top:0; z-index:40;">
+  <div style="max-width:1200px; margin:0 auto; padding:0 24px; display:flex; align-items:center; gap:24px; height:56px;">
+    <span style="font-weight:700; font-size:14px; letter-spacing:-0.3px; white-space:nowrap;">AI 數位轉型</span>
+    <div style="display:flex; gap:4px; flex:1;">
+      <button class="nav-tab active" onclick="showPage('service')">AI 服務中心</button>
+      <button class="nav-tab" onclick="showPage('tickets')">工單管理</button>
+      <button class="nav-tab" onclick="showPage('projects')">專案管理</button>
+      <button class="nav-tab" onclick="showPage('results')">AI 成果中心</button>
+    </div>
+    <div style="width:32px;height:32px;background:#F3F4F6;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#6B7280;">我</div>
+  </div>
+</nav>
+
+<div style="max-width:1200px; margin:0 auto; padding:32px 24px;">
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE 1：AI 服務中心
+═══════════════════════════════════════════════════ -->
+<div id="page-service" class="page active">
+  <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:32px;">
+    <div>
+      <h1 style="font-size:24px;font-weight:700;margin:0 0 4px;">AI 服務中心</h1>
+      <p style="font-size:14px;color:#6B7280;margin:0;">提交工單，讓 AI 團隊協助你解決問題</p>
+    </div>
+    <button class="btn btn-primary" onclick="openModal('ticket-modal')" style="display:flex;align-items:center;gap:6px;white-space:nowrap;">
+      + 新增工單
+    </button>
+  </div>
+
+  <!-- 統計卡 -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:32px;" id="service-stats">
+    <div class="card"><div style="font-size:28px;font-weight:700;" id="stat-pending">—</div><div style="font-size:13px;color:#6B7280;margin-top:4px;">待處理</div></div>
+    <div class="card"><div style="font-size:28px;font-weight:700;" id="stat-processing">—</div><div style="font-size:13px;color:#6B7280;margin-top:4px;">處理中</div></div>
+    <div class="card"><div style="font-size:28px;font-weight:700;" id="stat-waiting">—</div><div style="font-size:13px;color:#6B7280;margin-top:4px;">等待確認</div></div>
+    <div class="card"><div style="font-size:28px;font-weight:700;" id="stat-done">—</div><div style="font-size:13px;color:#6B7280;margin-top:4px;">已完成</div></div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+    <!-- 公告 -->
+    <div class="card">
+      <div style="font-size:14px;font-weight:600;margin-bottom:16px;">最新公告</div>
+      <div id="announcements-list"><div class="spinner"></div></div>
+    </div>
+    <!-- 我的工單 -->
+    <div class="card">
+      <div style="font-size:14px;font-weight:600;margin-bottom:16px;">我的工單</div>
+      <div id="my-tickets-list"><div class="spinner"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE 2：工單管理
+═══════════════════════════════════════════════════ -->
+<div id="page-tickets" class="page">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:32px;">
+    <h1 style="font-size:24px;font-weight:700;margin:0;">工單管理</h1>
+    <span style="font-size:13px;color:#6B7280;" id="tickets-count"></span>
+  </div>
+  <div style="display:flex;gap:16px;overflow-x:auto;padding-bottom:16px;" id="tickets-kanban">
+    <div class="spinner"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE 3：專案管理
+═══════════════════════════════════════════════════ -->
+<div id="page-projects" class="page">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+    <h1 style="font-size:24px;font-weight:700;margin:0;">專案管理</h1>
+    <button class="btn btn-primary" onclick="openModal('project-modal')" style="display:flex;align-items:center;gap:6px;">
+      + 新增專案
+    </button>
+  </div>
+  <div style="display:flex;gap:24px;height:calc(100vh - 200px);">
+    <!-- 左側專案列表 -->
+    <div style="width:280px;flex-shrink:0;overflow-y:auto;" id="project-list">
+      <div class="spinner"></div>
+    </div>
+    <!-- 右側任務 -->
+    <div style="flex:1;overflow-y:auto;" id="task-panel">
+      <div class="empty" style="margin-top:80px;">
+        <div style="font-size:32px;margin-bottom:8px;opacity:0.3;">←</div>
+        選擇左側專案查看任務
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     PAGE 4：AI 成果中心
+═══════════════════════════════════════════════════ -->
+<div id="page-results" class="page">
+  <h1 style="font-size:24px;font-weight:700;margin:0 0 32px;">AI 成果中心</h1>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:32px;">
+    <div class="card"><div style="font-size:28px;font-weight:700;" id="res-projects">—</div><div style="font-size:13px;color:#6B7280;margin-top:4px;">累積專案</div></div>
+    <div class="card"><div style="font-size:28px;font-weight:700;" id="res-tickets">—</div><div style="font-size:13px;color:#6B7280;margin-top:4px;">累積工單</div></div>
+    <div class="card"><div style="font-size:28px;font-weight:700;" id="res-completed">—</div><div style="font-size:13px;color:#6B7280;margin-top:4px;">已完成專案</div></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px;">
+    <div class="card">
+      <div style="font-size:14px;font-weight:600;margin-bottom:16px;">專案狀態分析</div>
+      <div id="stage-chart"></div>
+    </div>
+    <div class="card">
+      <div style="font-size:14px;font-weight:600;margin-bottom:16px;">部門工單分析</div>
+      <div id="dept-chart"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div style="font-size:14px;font-weight:600;margin-bottom:16px;">AI Roadmap</div>
+    <div id="roadmap-board" style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;"></div>
+  </div>
+</div>
+
+</div><!-- end main -->
+
+<!-- ═══════════════════════════════════════════════════
+     MODALS
+═══════════════════════════════════════════════════ -->
+
+<!-- 工單 Modal -->
+<div class="modal-overlay" id="ticket-modal">
+  <div class="modal">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 24px 16px;border-bottom:1px solid #E5E7EB;">
+      <div style="font-size:16px;font-weight:600;">新增工單</div>
+      <button onclick="closeModal('ticket-modal')" style="background:none;border:none;cursor:pointer;font-size:20px;color:#9CA3AF;line-height:1;">✕</button>
+    </div>
+    <div style="padding:20px 24px;">
+      <div id="ticket-error" class="error-msg" style="display:none;"></div>
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:13px;font-weight:500;margin-bottom:6px;">任務名稱 <span style="color:#DC2626;">*</span></label>
+        <input class="input" id="t-title" placeholder="簡短描述你的需求" />
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+        <div>
+          <label style="display:block;font-size:13px;font-weight:500;margin-bottom:6px;">填表人 <span style="color:#DC2626;">*</span></label>
+          <input class="input" id="t-submitter" placeholder="你的名字" />
+        </div>
+        <div>
+          <label style="display:block;font-size:13px;font-weight:500;margin-bottom:6px;">相關部門 <span style="color:#DC2626;">*</span></label>
+          <select class="input" id="t-dept">
+            <option value="">請選擇</option>
+            <option>璽墨</option><option>艾佳</option><option>光和信</option><option>其他</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:13px;font-weight:500;margin-bottom:6px;">問題描述</label>
+        <textarea class="input" id="t-desc" rows="4" placeholder="詳細描述問題或需求..."></textarea>
+      </div>
+      <div>
+        <label style="display:block;font-size:13px;font-weight:500;margin-bottom:6px;">日期</label>
+        <input class="input" type="date" id="t-date" />
+      </div>
+    </div>
+    <div style="padding:0 24px 24px;display:flex;gap:10px;justify-content:flex-end;">
+      <button class="btn btn-secondary" onclick="closeModal('ticket-modal')">取消</button>
+      <button class="btn btn-primary" onclick="submitTicket()">送出工單</button>
+    </div>
+  </div>
+</div>
+
+<!-- 專案 Modal -->
+<div class="modal-overlay" id="project-modal">
+  <div class="modal">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 24px 16px;border-bottom:1px solid #E5E7EB;">
+      <div style="font-size:16px;font-weight:600;">新增專案</div>
+      <button onclick="closeModal('project-modal')" style="background:none;border:none;cursor:pointer;font-size:20px;color:#9CA3AF;line-height:1;">✕</button>
+    </div>
+    <div style="padding:20px 24px;">
+      <div id="project-error" class="error-msg" style="display:none;"></div>
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:13px;font-weight:500;margin-bottom:6px;">專案名稱 <span style="color:#DC2626;">*</span></label>
+        <input class="input" id="p-name" />
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:13px;font-weight:500;margin-bottom:6px;">需求來源</label>
+        <input class="input" id="p-source" placeholder="例：主管指示、部門需求..." />
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:13px;font-weight:500;margin-bottom:6px;">專案目標</label>
+        <textarea class="input" id="p-goal" rows="3"></textarea>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+        <div>
+          <label style="display:block;font-size:13px;font-weight:500;margin-bottom:6px;">目前階段</label>
+          <select class="input" id="p-stage">
+            <option>規劃中</option><option>開發中</option><option>測試中</option><option>已完成</option><option>暫停</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block;font-size:13px;font-weight:500;margin-bottom:6px;">優先度</label>
+          <select class="input" id="p-priority">
+            <option>高</option><option selected>中</option><option>低</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+        <div>
+          <label style="display:block;font-size:13px;font-weight:500;margin-bottom:6px;">預計開始日期</label>
+          <input class="input" type="date" id="p-start" />
+        </div>
+        <div>
+          <label style="display:block;font-size:13px;font-weight:500;margin-bottom:6px;">預計完成日期</label>
+          <input class="input" type="date" id="p-end" />
+        </div>
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:13px;font-weight:500;margin-bottom:6px;">風險/卡關備註</label>
+        <textarea class="input" id="p-risk" rows="2"></textarea>
+      </div>
+    </div>
+    <div style="padding:0 24px 24px;display:flex;gap:10px;justify-content:flex-end;">
+      <button class="btn btn-secondary" onclick="closeModal('project-modal')">取消</button>
+      <button class="btn btn-primary" onclick="submitProject()">建立專案</button>
+    </div>
+  </div>
+</div>
+
+<!-- 任務 Modal -->
+<div class="modal-overlay" id="task-modal">
+  <div class="modal">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 24px 16px;border-bottom:1px solid #E5E7EB;">
+      <div>
+        <div style="font-size:16px;font-weight:600;">新增任務</div>
+        <div style="font-size:12px;color:#6B7280;margin-top:2px;" id="task-modal-project-name"></div>
+      </div>
+      <button onclick="closeModal('task-modal')" style="background:none;border:none;cursor:pointer;font-size:20px;color:#9CA3AF;line-height:1;">✕</button>
+    </div>
+    <div style="padding:20px 24px;">
+      <div id="task-error" class="error-msg" style="display:none;"></div>
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:13px;font-weight:500;margin-bottom:6px;">任務名稱 <span style="color:#DC2626;">*</span></label>
+        <input class="input" id="tk-name" />
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+        <div>
+          <label style="display:block;font-size:13px;font-weight:500;margin-bottom:6px;">負責人</label>
+          <input class="input" id="tk-assignee" />
+        </div>
+        <div>
+          <label style="display:block;font-size:13px;font-weight:500;margin-bottom:6px;">優先度</label>
+          <select class="input" id="tk-priority">
+            <option>高</option><option selected>中</option><option>低</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:13px;font-weight:500;margin-bottom:6px;">任務狀態</label>
+        <select class="input" id="tk-status">
+          <option>待開始</option><option>進行中</option><option>卡關</option><option>已完成</option>
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+        <div>
+          <label style="display:block;font-size:13px;font-weight:500;margin-bottom:6px;">開始日期</label>
+          <input class="input" type="date" id="tk-start" />
+        </div>
+        <div>
+          <label style="display:block;font-size:13px;font-weight:500;margin-bottom:6px;">截止日期</label>
+          <input class="input" type="date" id="tk-due" />
+        </div>
+      </div>
+      <div>
+        <label style="display:block;font-size:13px;font-weight:500;margin-bottom:6px;">任務說明</label>
+        <textarea class="input" id="tk-note" rows="3"></textarea>
+      </div>
+    </div>
+    <div style="padding:0 24px 24px;display:flex;gap:10px;justify-content:flex-end;">
+      <button class="btn btn-secondary" onclick="closeModal('task-modal')">取消</button>
+      <button class="btn btn-primary" onclick="submitTask()">新增任務</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// 設定區 — 填入你的 Lark 資訊
+// ═══════════════════════════════════════════════════
+const CONFIG = {
+  appId:     'YOUR_LARK_APP_ID',
+  appSecret: 'YOUR_LARK_APP_SECRET',
+  appToken:  'Ush0bCKtAa08h7slpVVjqG10pIg',
+  tables: {
+    tickets:       'tbllYQJY0mPyY0rb',
+    projects:      'tblQx7UphBLyz4K7',
+    tasks:         'tbl1RelJ3o5lr79D',
+    announcements: 'tblu0qYQjrrHKDyN',
+    roadmap:       'tbl9eXY7wKU12h56',
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// Lark API
+// ═══════════════════════════════════════════════════
+let _token = null, _tokenExp = 0
+
+async function getToken() {
+  if (_token && Date.now() < _tokenExp) return _token
+  const res = await fetch('https://open.larksuite.com/open-apis/auth/v3/tenant_access_token/internal', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ app_id: CONFIG.appId, app_secret: CONFIG.appSecret })
+  })
+  const d = await res.json()
+  if (d.code !== 0) throw new Error('Token 錯誤：' + d.msg)
+  _token = d.tenant_access_token
+  _tokenExp = Date.now() + (d.expire - 60) * 1000
+  return _token
+}
+
+async function larkFetch(path, opts = {}) {
+  const token = await getToken()
+  const res = await fetch('https://open.larksuite.com/open-apis' + path, {
+    ...opts,
+    headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json', ...(opts.headers || {}) }
+  })
+  const d = await res.json()
+  if (d.code !== 0) throw new Error('API 錯誤 [' + d.code + ']: ' + d.msg)
+  return d.data
+}
+
+const tableUrl = (tbl) => `/bitable/v1/apps/${CONFIG.appToken}/tables/${tbl}/records`
+
+async function listRecords(tbl, params = {}) {
+  const q = new URLSearchParams()
+  if (params.filter) q.set('filter', params.filter)
+  if (params.page_size) q.set('page_size', params.page_size)
+  if (params.sort) q.set('sort', JSON.stringify(params.sort))
+  const d = await larkFetch(tableUrl(tbl) + (q.toString() ? '?' + q : ''))
+  return d.items || []
+}
+
+async function createRecord(tbl, fields) {
+  return larkFetch(tableUrl(tbl), { method: 'POST', body: JSON.stringify({ fields }) })
+}
+
+async function updateRecord(tbl, id, fields) {
+  return larkFetch(tableUrl(tbl) + '/' + id, { method: 'PUT', body: JSON.stringify({ fields }) })
+}
+
+// ═══════════════════════════════════════════════════
+// 頁面切換
+// ═══════════════════════════════════════════════════
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'))
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'))
+  document.getElementById('page-' + name).classList.add('active')
+  event.target.classList.add('active')
+  if (name === 'service') loadService()
+  if (name === 'tickets') loadTickets()
+  if (name === 'projects') loadProjects()
+  if (name === 'results') loadResults()
+}
+
+// ═══════════════════════════════════════════════════
+// Modal
+// ═══════════════════════════════════════════════════
+function openModal(id) { document.getElementById(id).classList.add('open') }
+function closeModal(id) { document.getElementById(id).classList.remove('open') }
+
+// ═══════════════════════════════════════════════════
+// Badge
+// ═══════════════════════════════════════════════════
+function badge(label) {
+  const map = {
+    '已完成': 'green', '進行中': 'blue', '處理中': 'blue', '開發中': 'blue',
+    '卡關': 'red', '逾期': 'red', '暫停': 'red', '高': 'red',
+    '等待確認': 'yellow', '測試中': 'yellow', '中': 'yellow',
+    '待處理': 'gray', '待開始': 'gray', '規劃中': 'gray', '低': 'gray',
+  }
+  return `<span class="badge badge-${map[label] || 'gray'}">${label}</span>`
+}
+
+function fmtDate(ts) {
+  if (!ts) return ''
+  return new Date(ts).toLocaleDateString('zh-TW', { month: '2-digit', day: '2-digit' })
+}
+
+// ═══════════════════════════════════════════════════
+// PAGE 1：AI 服務中心
+// ═══════════════════════════════════════════════════
+async function loadService() {
+  try {
+    const [tickets, announcements] = await Promise.all([
+      listRecords(CONFIG.tables.tickets, { page_size: 100 }),
+      listRecords(CONFIG.tables.announcements, { sort: [{ field_name: '發布日期', order: 'DESC' }], page_size: 5 })
+    ])
+
+    const count = (s) => tickets.filter(t => t.fields['任務狀態'] === s).length
+    document.getElementById('stat-pending').textContent = count('待處理')
+    document.getElementById('stat-processing').textContent = count('處理中')
+    document.getElementById('stat-waiting').textContent = count('等待確認')
+    document.getElementById('stat-done').textContent = count('已完成')
+
+    const annEl = document.getElementById('announcements-list')
+    if (!announcements.length) { annEl.innerHTML = '<div class="empty">目前沒有公告</div>'; }
+    else annEl.innerHTML = announcements.map(a => `
+      <div style="padding:12px 0;border-bottom:1px solid #E5E7EB;">
+        <div style="font-size:14px;font-weight:500;">${a.fields['標題'] || ''}</div>
+        <div style="font-size:12px;color:#9CA3AF;margin-top:2px;">${fmtDate(a.fields['發布日期'])}</div>
+      </div>`).join('')
+
+    const tkEl = document.getElementById('my-tickets-list')
+    if (!tickets.length) { tkEl.innerHTML = '<div class="empty">還沒有工單</div>'; }
+    else tkEl.innerHTML = tickets.slice(0, 8).map(t => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #E5E7EB;gap:12px;">
+        <div>
+          <div style="font-size:14px;font-weight:500;">${t.fields['任務名稱'] || ''}</div>
+          <div style="font-size:12px;color:#9CA3AF;margin-top:2px;">${t.fields['相關部門'] || ''}</div>
+        </div>
+        ${badge(t.fields['任務狀態'])}
+      </div>`).join('')
+  } catch(e) {
+    console.error(e)
+    document.getElementById('my-tickets-list').innerHTML = `<div class="empty" style="color:#DC2626;">載入失敗：${e.message}</div>`
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// PAGE 2：工單管理
+// ═══════════════════════════════════════════════════
+const TICKET_STATUSES = ['待處理', '處理中', '等待確認', '已完成']
+
+async function loadTickets() {
+  const el = document.getElementById('tickets-kanban')
+  el.innerHTML = '<div class="spinner"></div>'
+  try {
+    const tickets = await listRecords(CONFIG.tables.tickets, { page_size: 200 })
+    document.getElementById('tickets-count').textContent = `共 ${tickets.length} 張工單`
+
+    el.innerHTML = TICKET_STATUSES.map(status => {
+      const items = tickets.filter(t => t.fields['任務狀態'] === status)
+      return `
+        <div class="kanban-col">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <span style="font-size:13px;font-weight:600;color:#6B7280;">${status}</span>
+            <span style="font-size:12px;background:#fff;border:1px solid #E5E7EB;border-radius:999px;padding:1px 8px;color:#9CA3AF;">${items.length}</span>
+          </div>
+          <div>
+            ${items.length ? items.map(t => ticketCard(t)).join('') : '<div style="font-size:12px;color:#D1D5DB;text-align:center;padding:24px 0;">—</div>'}
+          </div>
+        </div>`
+    }).join('')
+  } catch(e) {
+    el.innerHTML = `<div class="empty" style="color:#DC2626;">載入失敗：${e.message}</div>`
+  }
+}
+
+function ticketCard(t) {
+  const f = t.fields
+  return `
+    <div class="kanban-card">
+      <div style="font-size:14px;font-weight:500;margin-bottom:4px;line-height:1.4;">${f['任務名稱'] || ''}</div>
+      <div style="font-size:12px;color:#9CA3AF;margin-bottom:8px;">${f['填表人'] || ''} · ${f['相關部門'] || ''}</div>
+      ${f['問題描述'] ? `<div style="font-size:12px;color:#6B7280;margin-bottom:8px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${f['問題描述']}</div>` : ''}
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;justify-content:space-between;">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          ${f['優先度'] ? badge(f['優先度']) : ''}
+          ${f['工單性質'] ? badge(f['工單性質']) : ''}
+        </div>
+        <button onclick="openEditTicket('${t.record_id}','${(f['任務狀態']||'').replace(/'/g,"\\'")}','${(f['優先度']||'').replace(/'/g,"\\'")}','${(f['工單性質']||'').replace(/'/g,"\\'")}','${(f['截止日期']||'')}')" style="font-size:12px;color:#6B7280;background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;">編輯</button>
+      </div>
+    </div>`
+}
+
+// 編輯工單 inline
+let _editTicketId = null
+function openEditTicket(id, status, priority, nature, dueDate) {
+  _editTicketId = id
+  const html = `
+    <div id="edit-ticket-overlay" onclick="if(event.target===this)closeEditTicket()" style="position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:50;display:flex;align-items:center;justify-content:center;padding:16px;">
+      <div style="background:#fff;border-radius:16px;width:100%;max-width:380px;border:1px solid #E5E7EB;box-shadow:0 8px 32px rgba(0,0,0,0.12);">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #E5E7EB;">
+          <div style="font-size:15px;font-weight:600;">編輯工單</div>
+          <button onclick="closeEditTicket()" style="background:none;border:none;cursor:pointer;font-size:18px;color:#9CA3AF;">✕</button>
+        </div>
+        <div style="padding:16px 20px;display:grid;gap:12px;">
+          <div>
+            <label style="font-size:13px;font-weight:500;display:block;margin-bottom:4px;">任務狀態</label>
+            <select class="input" id="edit-status">
+              ${TICKET_STATUSES.map(s => `<option${s===status?' selected':''}>${s}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label style="font-size:13px;font-weight:500;display:block;margin-bottom:4px;">工單性質</label>
+            <select class="input" id="edit-nature">
+              <option value="">—</option>
+              ${['研究調查','系統建置','教育訓練','迭代優化'].map(n => `<option${n===nature?' selected':''}>${n}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label style="font-size:13px;font-weight:500;display:block;margin-bottom:4px;">優先度</label>
+            <select class="input" id="edit-priority">
+              ${['高','中','低'].map(p => `<option${p===priority?' selected':''}>${p}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label style="font-size:13px;font-weight:500;display:block;margin-bottom:4px;">截止日期</label>
+            <input class="input" type="date" id="edit-due" value="${dueDate ? new Date(Number(dueDate)).toISOString().split('T')[0] : ''}" />
+          </div>
+        </div>
+        <div style="padding:0 20px 20px;display:flex;gap:8px;justify-content:flex-end;">
+          <button class="btn btn-secondary" onclick="closeEditTicket()">取消</button>
+          <button class="btn btn-primary" onclick="saveEditTicket()">儲存</button>
+        </div>
+      </div>
+    </div>`
+  document.body.insertAdjacentHTML('beforeend', html)
+}
+
+function closeEditTicket() {
+  document.getElementById('edit-ticket-overlay')?.remove()
+}
+
+async function saveEditTicket() {
+  const fields = {
+    任務狀態: document.getElementById('edit-status').value,
+    工單性質: document.getElementById('edit-nature').value,
+    優先度: document.getElementById('edit-priority').value,
+  }
+  const due = document.getElementById('edit-due').value
+  if (due) fields['截止日期'] = new Date(due).getTime()
+  try {
+    await updateRecord(CONFIG.tables.tickets, _editTicketId, fields)
+    closeEditTicket()
+    loadTickets()
+  } catch(e) { alert('儲存失敗：' + e.message) }
+}
+
+// 提交新工單
+async function submitTicket() {
+  const title = document.getElementById('t-title').value.trim()
+  const submitter = document.getElementById('t-submitter').value.trim()
+  const dept = document.getElementById('t-dept').value
+  const errEl = document.getElementById('ticket-error')
+
+  if (!title) { errEl.textContent='請填寫任務名稱'; errEl.style.display='block'; return }
+  if (!submitter) { errEl.textContent='請填寫填表人'; errEl.style.display='block'; return }
+  if (!dept) { errEl.textContent='請選擇相關部門'; errEl.style.display='block'; return }
+  errEl.style.display='none'
+
+  try {
+    await createRecord(CONFIG.tables.tickets, {
+      任務名稱: title,
+      填表人: submitter,
+      相關部門: dept,
+      問題描述: document.getElementById('t-desc').value,
+      日期: Date.now(),
+      任務狀態: '待處理',
+    })
+    closeModal('ticket-modal')
+    ;['t-title','t-submitter','t-desc'].forEach(id => document.getElementById(id).value='')
+    document.getElementById('t-dept').value=''
+    loadService()
+  } catch(e) { errEl.textContent='送出失敗：'+e.message; errEl.style.display='block' }
+}
+
+// ═══════════════════════════════════════════════════
+// PAGE 3：專案管理
+// ═══════════════════════════════════════════════════
+let _selectedProject = null
+let _allTasks = []
+
+async function loadProjects() {
+  const listEl = document.getElementById('project-list')
+  listEl.innerHTML = '<div class="spinner"></div>'
+  try {
+    const projects = await listRecords(CONFIG.tables.projects, { page_size: 100 })
+    _allTasks = await listRecords(CONFIG.tables.tasks, { page_size: 500 })
+
+    if (!projects.length) { listEl.innerHTML = '<div class="empty">還沒有專案</div>'; return }
+
+    listEl.innerHTML = projects.map(p => `
+      <div class="project-item${_selectedProject?.record_id === p.record_id ? ' active' : ''}" onclick="selectProject(${JSON.stringify(p).replace(/"/g,'&quot;')})">
+        <div style="font-size:14px;font-weight:500;margin-bottom:6px;">${p.fields['專案名稱'] || ''}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          ${p.fields['目前階段'] ? badge(p.fields['目前階段']) : ''}
+          ${p.fields['優先度'] ? badge(p.fields['優先度']) : ''}
+        </div>
+        ${p.fields['預計完成日期'] ? `<div style="font-size:12px;color:#9CA3AF;margin-top:6px;">完成：${fmtDate(p.fields['預計完成日期'])}</div>` : ''}
+      </div>`).join('')
+
+    if (_selectedProject) {
+      const updated = projects.find(p => p.record_id === _selectedProject.record_id)
+      if (updated) renderTaskPanel(updated)
+    }
+  } catch(e) {
+    listEl.innerHTML = `<div class="empty" style="color:#DC2626;">載入失敗：${e.message}</div>`
+  }
+}
+
+function selectProject(p) {
+  _selectedProject = p
+  loadProjects()
+  renderTaskPanel(p)
+}
+
+function renderTaskPanel(p) {
+  const f = p.fields
+  const tasks = _allTasks.filter(t => {
+    const linked = t.fields['所屬專案']
+    if (!linked) return false
+    if (Array.isArray(linked)) return linked.some(l => l.record_id === p.record_id)
+    return false
+  })
+  const today = new Date(); today.setHours(0,0,0,0)
+
+  document.getElementById('task-panel').innerHTML = `
+    <div>
+      <div class="card" style="margin-bottom:16px;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
+          <div style="flex:1;">
+            <h2 style="font-size:18px;font-weight:700;margin:0 0 6px;">${f['專案名稱'] || ''}</h2>
+            ${f['專案目標'] ? `<p style="font-size:13px;color:#6B7280;margin:0 0 10px;">${f['專案目標']}</p>` : ''}
+            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+              ${f['目前階段'] ? badge(f['目前階段']) : ''}
+              ${f['優先度'] ? badge(f['優先度']) : ''}
+              ${f['需求來源'] ? `<span style="font-size:12px;color:#9CA3AF;">來源：${f['需求來源']}</span>` : ''}
+            </div>
+            ${(f['預計開始日期'] || f['預計完成日期']) ? `
+              <div style="font-size:12px;color:#9CA3AF;margin-top:8px;display:flex;gap:12px;">
+                ${f['預計開始日期'] ? `<span>開始：${fmtDate(f['預計開始日期'])}</span>` : ''}
+                ${f['預計完成日期'] ? `<span>完成：${fmtDate(f['預計完成日期'])}</span>` : ''}
+              </div>` : ''}
+            ${f['風險/卡關'] ? `<div style="margin-top:10px;background:#FEF2F2;color:#DC2626;font-size:12px;padding:8px 12px;border-radius:8px;">⚠ ${f['風險/卡關']}</div>` : ''}
+          </div>
+          <button class="btn btn-primary" onclick="openTaskModal('${p.record_id}','${(f['專案名稱']||'').replace(/'/g,"\\'")}')">+ 新增任務</button>
+        </div>
+      </div>
+
+      <div style="display:grid;gap:8px;">
+        ${!tasks.length ? '<div class="empty">這個專案還沒有任務</div>' : tasks.map(t => {
+          const tf = t.fields
+          const isOverdue = tf['截止日期'] && new Date(tf['截止日期']) < today && tf['任務狀態'] !== '已完成'
+          return `
+            <div class="card" style="${isOverdue ? 'border-color:#FECACA;' : ''}display:flex;align-items:center;gap:16px;">
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:14px;font-weight:500;">${tf['任務名稱'] || ''}</div>
+                ${tf['任務說明'] ? `<div style="font-size:12px;color:#9CA3AF;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${tf['任務說明']}</div>` : ''}
+                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;align-items:center;">
+                  ${tf['任務狀態'] ? badge(tf['任務狀態']) : ''}
+                  ${tf['優先度'] ? badge(tf['優先度']) : ''}
+                  ${tf['截止日期'] ? `<span style="font-size:12px;${isOverdue ? 'color:#DC2626;font-weight:500;' : 'color:#9CA3AF;'}">${fmtDate(tf['截止日期'])}${isOverdue ? ' · 逾期' : ''}</span>` : ''}
+                </div>
+              </div>
+              ${tf['負責人'] ? `<div style="font-size:12px;color:#6B7280;white-space:nowrap;flex-shrink:0;">${typeof tf['負責人']==='string' ? tf['負責人'] : tf['負責人']?.[0]?.name || ''}</div>` : ''}
+            </div>`
+        }).join('')}
+      </div>
+    </div>`
+}
+
+function openTaskModal(projectId, projectName) {
+  _taskProjectId = projectId
+  document.getElementById('task-modal-project-name').textContent = projectName
+  openModal('task-modal')
+}
+
+let _taskProjectId = null
+
+async function submitProject() {
+  const name = document.getElementById('p-name').value.trim()
+  const errEl = document.getElementById('project-error')
+  if (!name) { errEl.textContent='請填寫專案名稱'; errEl.style.display='block'; return }
+  errEl.style.display='none'
+  try {
+    const start = document.getElementById('p-start').value
+    const end = document.getElementById('p-end').value
+    await createRecord(CONFIG.tables.projects, {
+      專案名稱: name,
+      需求來源: document.getElementById('p-source').value,
+      專案目標: document.getElementById('p-goal').value,
+      目前階段: document.getElementById('p-stage').value,
+      優先度: document.getElementById('p-priority').value,
+      預計開始日期: start ? new Date(start).getTime() : undefined,
+      預計完成日期: end ? new Date(end).getTime() : undefined,
+      '風險/卡關': document.getElementById('p-risk').value,
+      建立日期: Date.now(),
+    })
+    closeModal('project-modal')
+    ;['p-name','p-source','p-goal','p-risk'].forEach(id => document.getElementById(id).value='')
+    loadProjects()
+  } catch(e) { errEl.textContent='建立失敗：'+e.message; errEl.style.display='block' }
+}
+
+async function submitTask() {
+  const name = document.getElementById('tk-name').value.trim()
+  const errEl = document.getElementById('task-error')
+  if (!name) { errEl.textContent='請填寫任務名稱'; errEl.style.display='block'; return }
+  errEl.style.display='none'
+  try {
+    const start = document.getElementById('tk-start').value
+    const due = document.getElementById('tk-due').value
+    await createRecord(CONFIG.tables.tasks, {
+      任務名稱: name,
+      所屬專案: [{ record_id: _taskProjectId }],
+      負責人: document.getElementById('tk-assignee').value,
+      任務狀態: document.getElementById('tk-status').value,
+      優先度: document.getElementById('tk-priority').value,
+      開始日期: start ? new Date(start).getTime() : undefined,
+      截止日期: due ? new Date(due).getTime() : undefined,
+      任務說明: document.getElementById('tk-note').value,
+    })
+    closeModal('task-modal')
+    document.getElementById('tk-name').value=''
+    document.getElementById('tk-assignee').value=''
+    document.getElementById('tk-note').value=''
+    _allTasks = await listRecords(CONFIG.tables.tasks, { page_size: 500 })
+    if (_selectedProject) renderTaskPanel(_selectedProject)
+  } catch(e) { errEl.textContent='新增失敗：'+e.message; errEl.style.display='block' }
+}
+
+// ═══════════════════════════════════════════════════
+// PAGE 4：AI 成果中心
+// ═══════════════════════════════════════════════════
+async function loadResults() {
+  try {
+    const [projects, tickets, roadmap] = await Promise.all([
+      listRecords(CONFIG.tables.projects, { page_size: 500 }),
+      listRecords(CONFIG.tables.tickets, { page_size: 500 }),
+      listRecords(CONFIG.tables.roadmap, { page_size: 50 }),
+    ])
+
+    const completed = projects.filter(p => p.fields['目前階段'] === '已完成')
+    document.getElementById('res-projects').textContent = projects.length
+    document.getElementById('res-tickets').textContent = tickets.length
+    document.getElementById('res-completed').textContent = completed.length
+
+    // 專案狀態圖
+    const stages = ['規劃中','開發中','測試中','已完成','暫停']
+    const stageCounts = stages.map(s => ({ s, n: projects.filter(p => p.fields['目前階段'] === s).length }))
+    const maxStage = Math.max(...stageCounts.map(x => x.n), 1)
+    document.getElementById('stage-chart').innerHTML = stageCounts.map(({ s, n }) => `
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+        <div style="width:72px;font-size:12px;color:#6B7280;text-align:right;flex-shrink:0;">${s}</div>
+        <div style="flex:1;background:#F3F4F6;border-radius:4px;height:20px;">
+          <div style="background:#1A1A1A;border-radius:4px;height:20px;width:${n ? Math.max(n/maxStage*100,4) : 0}%;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;">
+            ${n ? `<span style="font-size:11px;color:#fff;font-weight:600;">${n}</span>` : ''}
+          </div>
+        </div>
+      </div>`).join('')
+
+    // 部門圖
+    const deptMap = {}
+    tickets.forEach(t => { const d = t.fields['相關部門'] || '其他'; deptMap[d] = (deptMap[d]||0)+1 })
+    const depts = Object.entries(deptMap)
+    const maxDept = Math.max(...depts.map(x => x[1]), 1)
+    document.getElementById('dept-chart').innerHTML = depts.length
+      ? depts.map(([d, n]) => `
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+          <div style="width:72px;font-size:12px;color:#6B7280;text-align:right;flex-shrink:0;">${d}</div>
+          <div style="flex:1;background:#F3F4F6;border-radius:4px;height:20px;">
+            <div style="background:#6B7280;border-radius:4px;height:20px;width:${Math.max(n/maxDept*100,4)}%;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;">
+              <span style="font-size:11px;color:#fff;font-weight:600;">${n}</span>
+            </div>
+          </div>
+        </div>`).join('')
+      : '<div class="empty">尚無工單資料</div>'
+
+    // Roadmap
+    const quarters = ['Q1','Q2','Q3','Q4']
+    const roadmapEl = document.getElementById('roadmap-board')
+    roadmapEl.innerHTML = quarters.map(q => {
+      const items = roadmap.filter(r => r.fields['季度'] === q)
+      return `
+        <div style="background:#F9FAFB;border-radius:10px;padding:14px;border:1px solid #E5E7EB;">
+          <div style="font-size:12px;font-weight:700;color:#6B7280;margin-bottom:10px;">${q}</div>
+          ${!items.length
+            ? '<div style="font-size:12px;color:#D1D5DB;">尚未規劃</div>'
+            : items.map(item => {
+                const s = item.fields['狀態']
+                const colorMap = { '已完成':'#F0FDF4;color:#16A34A;border-color:#BBF7D0', '進行中':'#EFF6FF;color:#2563EB;border-color:#BFDBFE', '規劃中':'#F9FAFB;color:#6B7280;border-color:#E5E7EB' }
+                return `<div style="font-size:12px;padding:8px 10px;border-radius:8px;border:1px solid;background:${colorMap[s]||'#F9FAFB;color:#6B7280;border-color:#E5E7EB'};margin-bottom:6px;">
+                  <div style="font-weight:500;">${item.fields['計畫項目']||''}</div>
+                  <div style="opacity:0.7;margin-top:2px;">${s||''}</div>
+                </div>`
+              }).join('')
+          }
+        </div>`
+    }).join('')
+  } catch(e) {
+    console.error(e)
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// 初始化
+// ═══════════════════════════════════════════════════
+loadService()
+</script>
+</body>
+</html>
