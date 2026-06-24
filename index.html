@@ -344,8 +344,8 @@
 // 設定區 — 填入你的 Lark 資訊
 // ═══════════════════════════════════════════════════
 const CONFIG = {
-  appId:     'YOUR_LARK_APP_ID',
-  appSecret: 'YOUR_LARK_APP_SECRET',
+  
+  
   appToken:  'Ush0bCKtAa08h7slpVVjqG10pIg',
   tables: {
     tickets:       'tbllYQJY0mPyY0rb',
@@ -363,14 +363,11 @@ let _token = null, _tokenExp = 0
 
 async function getToken() {
   if (_token && Date.now() < _tokenExp) return _token
-  const res = await fetch('https://open.larksuite.com/open-apis/auth/v3/tenant_access_token/internal', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ app_id: CONFIG.appId, app_secret: CONFIG.appSecret })
-  })
+  // 呼叫 Vercel API Route，appSecret 安全存在 Vercel 環境變數
+  const res = await fetch('/api/token', { method: 'POST' })
   const d = await res.json()
-  if (d.code !== 0) throw new Error('Token 錯誤：' + d.msg)
-  _token = d.tenant_access_token
+  if (d.error) throw new Error('Token 錯誤：' + d.error)
+  _token = d.token
   _tokenExp = Date.now() + (d.expire - 60) * 1000
   return _token
 }
