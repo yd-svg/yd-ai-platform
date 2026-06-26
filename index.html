@@ -67,10 +67,10 @@
   <div style="max-width:1200px; margin:0 auto; padding:0 24px; display:flex; align-items:center; gap:24px; height:56px;">
     
     <div style="display:flex; gap:4px; flex:1;">
-      <button class="nav-tab active" onclick="showPage('service')">Lark工單服務</button>
-      <button class="nav-tab" onclick="showPage('tickets')">Lark工單管理</button>
-      <button class="nav-tab" onclick="showPage('projects')">AI專案管理</button>
-      <button class="nav-tab" onclick="showPage('results')">AI成果中心</button>
+      <button class="nav-tab active" onclick="showPage('service')">AI 服務中心</button>
+      <button class="nav-tab" onclick="showPage('tickets')">工單管理</button>
+      <button class="nav-tab" onclick="showPage('projects')">專案管理</button>
+      <button class="nav-tab" onclick="showPage('results')">AI 成果中心</button>
     </div>
     <div style="width:32px;height:32px;background:#F3F4F6;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#6B7280;">我</div>
   </div>
@@ -79,13 +79,13 @@
 <div style="max-width:1200px; margin:0 auto; padding:32px 24px;">
 
 <!-- ═══════════════════════════════════════════════════
-     PAGE 1：Lark工單服務
+     PAGE 1：AI 服務中心
 ═══════════════════════════════════════════════════ -->
 <div id="page-service" class="page active">
   <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:32px;">
     <div>
-      <h1 style="font-size:24px;font-weight:700;margin:0 0 4px;">Lark工單服務</h1>
-      <p style="font-size:14px;color:#6B7280;margin:0;">有任何Lark上需要協助跟處理的問題即可填寫工單，處理完畢會通知填單人</p>
+      <h1 style="font-size:24px;font-weight:700;margin:0 0 4px;">AI 服務中心</h1>
+      <p style="font-size:14px;color:#6B7280;margin:0;">提交工單，讓 AI 團隊協助你解決問題</p>
     </div>
     <button class="btn btn-primary" onclick="openModal('ticket-modal')" style="display:flex;align-items:center;gap:6px;white-space:nowrap;">
       + 新增工單
@@ -110,7 +110,7 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════
-     PAGE 2：Lark工單管理
+     PAGE 2：工單管理
 ═══════════════════════════════════════════════════ -->
 <div id="page-tickets" class="page">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:32px;">
@@ -123,7 +123,7 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════
-     PAGE 3：AI專案管理
+     PAGE 3：專案管理
 ═══════════════════════════════════════════════════ -->
 <div id="page-projects" class="page">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
@@ -148,7 +148,7 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════
-     PAGE 4：AI成果中心
+     PAGE 4：AI 成果中心
 ═══════════════════════════════════════════════════ -->
 <div id="page-results" class="page">
   <h1 style="font-size:24px;font-weight:700;margin:0 0 32px;">AI 成果中心</h1>
@@ -339,7 +339,7 @@
 // 設定區 — 填入你的 Lark 資訊
 // ═══════════════════════════════════════════════════
 const CONFIG = {
-  larkAppId: 'cli_aab0a79779f89e13',   // 在 Lark 開發者後台「憑證與基礎信息」可以找到，不是機密，可放前端
+  larkAppId: '請填入你的 Lark App ID',   // 在 Lark 開發者後台「憑證與基礎信息」可以找到，不是機密，可放前端
   appToken:  'Ush0bCKtAa08h7slpVVjqG10pIg',
   tables: {
     tickets:       'tbllYQJY0mPyY0rb',
@@ -424,7 +424,17 @@ function closeModal(id) { document.getElementById(id).classList.remove('open') }
 // ═══════════════════════════════════════════════════
 // Badge
 // ═══════════════════════════════════════════════════
+// 安全把 Lark 欄位值轉成可顯示文字（避免關聯欄位/人員欄位等物件型態顯示成 [object Object]）
+function fieldText(v) {
+  if (v == null) return ''
+  if (typeof v === 'string' || typeof v === 'number') return String(v)
+  if (Array.isArray(v)) return v.map(fieldText).join('、')
+  if (typeof v === 'object') return v.text || v.name || ''
+  return String(v)
+}
+
 function badge(label) {
+  label = fieldText(label)
   const map = {
     '已完成': 'green', '進行中': 'blue', '處理中': 'blue', '開發中': 'blue',
     '卡關': 'red', '逾期': 'red', '暫停': 'red', '高': 'red',
@@ -652,7 +662,8 @@ function renderTaskPanel(p) {
   const tasks = _allTasks.filter(t => {
     const linked = t.fields['所屬專案']
     if (!linked) return false
-    if (Array.isArray(linked)) return linked.some(l => l.record_id === p.record_id)
+    if (Array.isArray(linked)) return linked.some(l => l.record_id === p.record_id || l.text === f['專案名稱'])
+    if (typeof linked === 'string') return linked === f['專案名稱']
     return false
   })
   const today = new Date(); today.setHours(0,0,0,0)
@@ -667,7 +678,7 @@ function renderTaskPanel(p) {
             <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
               ${f['目前階段'] ? badge(f['目前階段']) : ''}
               ${f['優先度'] ? badge(f['優先度']) : ''}
-              ${f['需求來源'] ? `<span style="font-size:12px;color:#9CA3AF;">來源：${f['需求來源']}</span>` : ''}
+              ${f['需求來源'] ? `<span style="font-size:12px;color:#9CA3AF;">來源：${fieldText(f['需求來源'])}</span>` : ''}
             </div>
             ${(f['預計開始日期'] || f['預計完成日期']) ? `
               <div style="font-size:12px;color:#9CA3AF;margin-top:8px;display:flex;gap:12px;">
@@ -680,24 +691,57 @@ function renderTaskPanel(p) {
         </div>
       </div>
 
-      <div style="display:grid;gap:8px;">
-        ${!tasks.length ? '<div class="empty">這個專案還沒有任務</div>' : tasks.map(t => {
-          const tf = t.fields
-          const isOverdue = tf['截止日期'] && new Date(tf['截止日期']) < today && tf['任務狀態'] !== '已完成'
-          return `
-            <div class="card" style="${isOverdue ? 'border-color:#FECACA;' : ''}display:flex;align-items:center;gap:16px;">
-              <div style="flex:1;min-width:0;">
-                <div style="font-size:14px;font-weight:500;">${tf['任務名稱'] || ''}</div>
-                ${tf['任務說明'] ? `<div style="font-size:12px;color:#9CA3AF;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${tf['任務說明']}</div>` : ''}
-                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;align-items:center;">
-                  ${tf['任務狀態'] ? badge(tf['任務狀態']) : ''}
-                  ${tf['優先度'] ? badge(tf['優先度']) : ''}
-                  ${tf['截止日期'] ? `<span style="font-size:12px;${isOverdue ? 'color:#DC2626;font-weight:500;' : 'color:#9CA3AF;'}">${fmtDate(tf['截止日期'])}${isOverdue ? ' · 逾期' : ''}</span>` : ''}
+      <div>
+        ${!tasks.length ? '<div class="empty">這個專案還沒有任務</div>' : (() => {
+          // 依「階段」分組
+          const groups = {}
+          const order = []
+          tasks.forEach(t => {
+            const stage = fieldText(t.fields['階段']) || '未分類'
+            if (!groups[stage]) { groups[stage] = []; order.push(stage) }
+            groups[stage].push(t)
+          })
+          // 階段排序：依階段文字裡的數字（例如「階段一」→沒有數字就維持原順序）；組內依「子序」數字排序
+          const subSeqNum = (t) => parseFloat(fieldText(t.fields['子序'])) || 0
+          order.forEach(stage => groups[stage].sort((a, b) => subSeqNum(a) - subSeqNum(b)))
+
+          return order.map(stage => {
+            const items = groups[stage]
+            return `
+              <div style="margin-bottom:24px;">
+                <div style="font-size:15px;font-weight:700;margin-bottom:10px;">${stage}（${items.length} 項）</div>
+                <div class="card" style="padding:0;overflow:hidden;">
+                  <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                    <thead>
+                      <tr style="background:#F9FAFB;border-bottom:1px solid #E5E7EB;">
+                        <th style="text-align:left;padding:10px 12px;width:56px;color:#6B7280;font-weight:600;">#</th>
+                        <th style="text-align:left;padding:10px 12px;color:#6B7280;font-weight:600;">任務</th>
+                        <th style="text-align:left;padding:10px 12px;color:#6B7280;font-weight:600;">產出/完成標準</th>
+                        <th style="text-align:left;padding:10px 12px;width:90px;color:#6B7280;font-weight:600;">狀態</th>
+                        <th style="text-align:left;padding:10px 12px;width:90px;color:#6B7280;font-weight:600;">負責人</th>
+                        <th style="text-align:left;padding:10px 12px;width:80px;color:#6B7280;font-weight:600;">截止</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${items.map(t => {
+                        const tf = t.fields
+                        const isOverdue = tf['截止日期'] && new Date(tf['截止日期']) < today && tf['任務狀態'] !== '已完成'
+                        return `
+                          <tr style="border-bottom:1px solid #F3F4F6;${isOverdue ? 'background:#FEF2F2;' : ''}">
+                            <td style="padding:10px 12px;color:#9CA3AF;vertical-align:top;">${fieldText(tf['子序'])}</td>
+                            <td style="padding:10px 12px;font-weight:500;vertical-align:top;">${fieldText(tf['任務說明'])}</td>
+                            <td style="padding:10px 12px;color:#6B7280;vertical-align:top;">${fieldText(tf['產出項目'])}</td>
+                            <td style="padding:10px 12px;vertical-align:top;">${tf['任務狀態'] ? badge(tf['任務狀態']) : ''}</td>
+                            <td style="padding:10px 12px;color:#6B7280;vertical-align:top;">${fieldText(tf['負責人'])}</td>
+                            <td style="padding:10px 12px;${isOverdue ? 'color:#DC2626;font-weight:500;' : 'color:#9CA3AF;'}vertical-align:top;">${fmtDate(tf['截止日期'])}${isOverdue ? ' 逾期' : ''}</td>
+                          </tr>`
+                      }).join('')}
+                    </tbody>
+                  </table>
                 </div>
-              </div>
-              ${tf['負責人'] ? `<div style="font-size:12px;color:#6B7280;white-space:nowrap;flex-shrink:0;">${typeof tf['負責人']==='string' ? tf['負責人'] : tf['負責人']?.[0]?.name || ''}</div>` : ''}
-            </div>`
-        }).join('')}
+              </div>`
+          }).join('')
+        })()}
       </div>
     </div>`
 }
