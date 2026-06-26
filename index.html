@@ -448,7 +448,7 @@ async function loadService() {
   try {
     const [tickets, announcements] = await Promise.all([
       listRecords(CONFIG.tables.tickets, { page_size: 100 }),
-      listRecords(CONFIG.tables.announcements, { sort: [{ field_name: '發布日期', desc: true }], page_size: 5 })
+      listRecords(CONFIG.tables.announcements, { page_size: 5 })
     ])
 
     const count = (s) => tickets.filter(t => t.fields['任務狀態'] === s).length
