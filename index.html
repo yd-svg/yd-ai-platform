@@ -79,13 +79,13 @@
 <div style="max-width:1200px; margin:0 auto; padding:32px 24px;">
 
 <!-- ═══════════════════════════════════════════════════
-     PAGE 1：Lark工單服務
+     PAGE 1：AI 服務中心
 ═══════════════════════════════════════════════════ -->
 <div id="page-service" class="page active">
   <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:32px;">
     <div>
-      <h1 style="font-size:24px;font-weight:700;margin:0 0 4px;">Lark工單服務/h1>
-      <p style="font-size:14px;color:#6B7280;margin:0;">有Lark上的問題請提交工單，處理完畢會再通知您</p>
+      <h1 style="font-size:24px;font-weight:700;margin:0 0 4px;">Lark工單服務</h1>
+      <p style="font-size:14px;color:#6B7280;margin:0;">提交工單，讓 AI 團隊協助你解決問題</p>
     </div>
     <button class="btn btn-primary" onclick="openModal('ticket-modal')" style="display:flex;align-items:center;gap:6px;white-space:nowrap;">
       + 新增工單
@@ -110,7 +110,7 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════
-     PAGE 2：Lark工單管理
+     PAGE 2：工單管理
 ═══════════════════════════════════════════════════ -->
 <div id="page-tickets" class="page">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:32px;">
@@ -123,19 +123,32 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════
-     PAGE 3：AI專案管理
+     PAGE 3：專案管理
 ═══════════════════════════════════════════════════ -->
 <div id="page-projects" class="page">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
     <h1 style="font-size:24px;font-weight:700;margin:0;">AI專案管理</h1>
-    <button class="btn btn-primary" onclick="openModal('project-modal')" style="display:flex;align-items:center;gap:6px;">
-      + 新增專案
-    </button>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <div style="display:flex;background:#F3F4F6;border-radius:8px;padding:2px;">
+        <button id="proj-view-list" class="btn" onclick="setProjectView('list')" style="background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.08);">列表</button>
+        <button id="proj-view-gantt" class="btn" onclick="setProjectView('gantt')" style="background:transparent;">甘特圖</button>
+      </div>
+      <button class="btn btn-primary" onclick="openModal('project-modal')" style="display:flex;align-items:center;gap:6px;">
+        + 新增專案
+      </button>
+    </div>
   </div>
-  <div style="display:flex;gap:24px;height:calc(100vh - 200px);">
+  <div id="project-gantt-wrap" style="display:none;margin-bottom:24px;gap:16px;">
+    <div class="card" id="project-gantt" style="flex:1;"></div>
+    <div class="card" id="project-gantt-alerts" style="width:260px;flex-shrink:0;"></div>
+  </div>
+  <div id="project-list-wrap" style="display:flex;gap:24px;height:calc(100vh - 200px);">
     <!-- 左側專案列表 -->
-    <div style="width:280px;flex-shrink:0;overflow-y:auto;" id="project-list">
-      <div class="spinner"></div>
+    <div style="width:280px;flex-shrink:0;display:flex;flex-direction:column;">
+      <div style="flex:1;overflow-y:auto;" id="project-list">
+        <div class="spinner"></div>
+      </div>
+      <div id="project-pagination" style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;font-size:12px;color:#6B7280;"></div>
     </div>
     <!-- 右側任務 -->
     <div style="flex:1;overflow-y:auto;" id="task-panel">
@@ -148,7 +161,7 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════
-     PAGE 4：AI成果中心
+     PAGE 4：AI 成果中心
 ═══════════════════════════════════════════════════ -->
 <div id="page-results" class="page">
   <h1 style="font-size:24px;font-weight:700;margin:0 0 32px;">AI成果中心</h1>
@@ -623,24 +636,40 @@ async function submitTicket() {
 let _selectedProject = null
 let _allTasks = []
 
+let _projectView = 'list'
+let _projectPage = 0
+let _projectsCache = []
+const PROJECTS_PER_PAGE = 5
+
+function setProjectView(view) {
+  _projectView = view
+  document.getElementById('proj-view-list').style.background = view === 'list' ? '#fff' : 'transparent'
+  document.getElementById('proj-view-list').style.boxShadow = view === 'list' ? '0 1px 2px rgba(0,0,0,.08)' : 'none'
+  document.getElementById('proj-view-gantt').style.background = view === 'gantt' ? '#fff' : 'transparent'
+  document.getElementById('proj-view-gantt').style.boxShadow = view === 'gantt' ? '0 1px 2px rgba(0,0,0,.08)' : 'none'
+  document.getElementById('project-gantt-wrap').style.display = view === 'gantt' ? 'flex' : 'none'
+  document.getElementById('project-list-wrap').style.display = view === 'gantt' ? 'none' : 'flex'
+  if (view === 'gantt') renderGantt(_projectsCache)
+}
+
 async function loadProjects() {
   const listEl = document.getElementById('project-list')
   listEl.innerHTML = '<div class="spinner"></div>'
   try {
-    const projects = await listRecords(CONFIG.tables.projects, { page_size: 100 })
+    let projects = await listRecords(CONFIG.tables.projects, { page_size: 100 })
     _allTasks = await listRecords(CONFIG.tables.tasks, { page_size: 500 })
 
-    if (!projects.length) { listEl.innerHTML = '<div class="empty">還沒有專案</div>'; return }
+    // 依「最新」排序：優先用 Lark 紀錄的建立時間（created_time），沒有的話用清單回傳順序反轉（API 預設由舊到新）
+    projects = projects.slice().sort((a, b) => {
+      const at = a.created_time || 0, bt = b.created_time || 0
+      if (at !== bt) return bt - at
+      return 0
+    })
+    if (!projects.some(p => p.created_time)) projects = projects.slice().reverse()
 
-    listEl.innerHTML = projects.map(p => `
-      <div class="project-item${_selectedProject?.record_id === p.record_id ? ' active' : ''}" onclick="selectProject(${JSON.stringify(p).replace(/"/g,'&quot;')})">
-        <div style="font-size:14px;font-weight:500;margin-bottom:6px;">${p.fields['專案名稱'] || ''}</div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;">
-          ${p.fields['目前階段'] ? badge(p.fields['目前階段']) : ''}
-          ${p.fields['優先度'] ? badge(p.fields['優先度']) : ''}
-        </div>
-        ${p.fields['預計完成日期'] ? `<div style="font-size:12px;color:#9CA3AF;margin-top:6px;">完成：${fmtDate(p.fields['預計完成日期'])}</div>` : ''}
-      </div>`).join('')
+    _projectsCache = projects
+    renderProjectList()
+    if (_projectView === 'gantt') renderGantt(projects)
 
     if (_selectedProject) {
       const updated = projects.find(p => p.record_id === _selectedProject.record_id)
@@ -651,9 +680,120 @@ async function loadProjects() {
   }
 }
 
+function renderProjectList() {
+  const listEl = document.getElementById('project-list')
+  const pagEl = document.getElementById('project-pagination')
+  const projects = _projectsCache
+
+  if (!projects.length) { listEl.innerHTML = '<div class="empty">還沒有專案</div>'; pagEl.innerHTML = ''; return }
+
+  const totalPages = Math.ceil(projects.length / PROJECTS_PER_PAGE)
+  if (_projectPage >= totalPages) _projectPage = totalPages - 1
+  if (_projectPage < 0) _projectPage = 0
+  const pageItems = projects.slice(_projectPage * PROJECTS_PER_PAGE, _projectPage * PROJECTS_PER_PAGE + PROJECTS_PER_PAGE)
+
+  listEl.innerHTML = pageItems.map(p => `
+    <div class="project-item${_selectedProject?.record_id === p.record_id ? ' active' : ''}" onclick="selectProject(${JSON.stringify(p).replace(/"/g,'&quot;')})">
+      <div style="font-size:14px;font-weight:500;margin-bottom:6px;">${p.fields['專案名稱'] || ''}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        ${p.fields['目前階段'] ? badge(p.fields['目前階段']) : ''}
+        ${p.fields['優先度'] ? badge(p.fields['優先度']) : ''}
+      </div>
+      ${p.fields['預計完成日期'] ? `<div style="font-size:12px;color:#9CA3AF;margin-top:6px;">完成：${fmtDate(p.fields['預計完成日期'])}</div>` : ''}
+    </div>`).join('')
+
+  pagEl.innerHTML = totalPages <= 1 ? '' : `
+    <button class="btn" style="padding:4px 10px;" onclick="_projectPage--;renderProjectList()" ${_projectPage===0?'disabled':''}>‹ 上一頁</button>
+    <span>第 ${_projectPage+1} / ${totalPages} 頁</span>
+    <button class="btn" style="padding:4px 10px;" onclick="_projectPage++;renderProjectList()" ${_projectPage>=totalPages-1?'disabled':''}>下一頁 ›</button>`
+}
+
+function getProjectTasks(p) {
+  return _allTasks.filter(t => {
+    const linked = t.fields['所屬專案']
+    if (!linked) return false
+    if (Array.isArray(linked)) return linked.some(l => l.record_id === p.record_id || l.text === p.fields['專案名稱'])
+    if (typeof linked === 'string') return linked === p.fields['專案名稱']
+    return false
+  })
+}
+
+function renderGantt(projects) {
+  const el = document.getElementById('project-gantt')
+  const alertsEl = document.getElementById('project-gantt-alerts')
+  const today = new Date(); today.setHours(0,0,0,0)
+  const colors = { '已完成': '#10B981', '進行中': '#3B82F6', '處理中': '#3B82F6', '待處理': '#9CA3AF', '待開始': '#9CA3AF', '卡關': '#EF4444', '暫停': '#F59E0B' }
+
+  // 蒐集所有有日期的任務（跨全部專案），決定整體時間軸範圍
+  const blocks = projects.map(p => ({ project: p, tasks: getProjectTasks(p).filter(t => t.fields['開始日期'] && t.fields['截止日期']) }))
+                          .filter(b => b.tasks.length)
+
+  if (!blocks.length) {
+    el.innerHTML = '<div class="empty">目前沒有任務有完整的開始/截止日期，無法繪製甘特圖</div>'
+    alertsEl.innerHTML = ''
+    return
+  }
+
+  const allTasks = blocks.flatMap(b => b.tasks)
+  const minDate = Math.min(...allTasks.map(t => new Date(t.fields['開始日期']).getTime()))
+  const maxDate = Math.max(...allTasks.map(t => new Date(t.fields['截止日期']).getTime()))
+  const span = Math.max(maxDate - minDate, 1)
+
+  el.innerHTML = blocks.map(({ project: p, tasks }) => `
+    <div style="margin-bottom:20px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <div style="width:8px;height:8px;border-radius:50%;background:#3B82F6;"></div>
+        <div style="font-weight:700;font-size:14px;">${p.fields['專案名稱'] || ''}</div>
+        ${p.fields['目前階段'] ? badge(p.fields['目前階段']) : ''}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        ${tasks.map(t => {
+          const tf = t.fields
+          const s = new Date(tf['開始日期']).getTime()
+          const e = new Date(tf['截止日期']).getTime()
+          const leftPct = ((s - minDate) / span) * 100
+          const widthPct = Math.max(((e - s) / span) * 100, 1.2)
+          const isOverdue = e < today.getTime() && tf['任務狀態'] !== '已完成'
+          const color = isOverdue ? '#EF4444' : (colors[fieldText(tf['任務狀態'])] || '#9CA3AF')
+          return `
+            <div style="display:flex;align-items:center;gap:12px;">
+              <div style="width:150px;flex-shrink:0;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#374151;">${fieldText(tf['任務說明'])}</div>
+              <div style="flex:1;position:relative;height:20px;background:#F3F4F6;border-radius:5px;">
+                <div title="${fmtDate(tf['開始日期'])} ～ ${fmtDate(tf['截止日期'])}${isOverdue ? '（逾期）' : ''}"
+                     style="position:absolute;left:${leftPct}%;width:${widthPct}%;height:100%;background:${color};border-radius:5px;">
+                </div>
+              </div>
+            </div>`
+        }).join('')}
+      </div>
+    </div>`).join('') + `
+    <div style="margin-top:12px;font-size:12px;color:#9CA3AF;display:flex;justify-content:space-between;">
+      <span>${fmtDate(minDate)}</span>
+      <span>${fmtDate(maxDate)}</span>
+    </div>`
+
+  // 逾期提醒清單
+  const overdue = allTasks.filter(t => new Date(t.fields['截止日期']).getTime() < today.getTime() && t.fields['任務狀態'] !== '已完成')
+  alertsEl.innerHTML = `
+    <div style="font-size:13px;font-weight:700;color:#DC2626;margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+      <span style="width:8px;height:8px;border-radius:50%;background:#DC2626;display:inline-block;"></span>
+      已逾期 ${overdue.length}
+    </div>
+    ${!overdue.length ? '<div class="empty" style="font-size:12px;">目前沒有逾期任務</div>' : overdue.map(t => {
+      const tf = t.fields
+      const days = Math.floor((today.getTime() - new Date(tf['截止日期']).getTime()) / 86400000)
+      const proj = blocks.find(b => b.tasks.includes(t))?.project
+      return `
+        <div style="padding:10px 0;border-bottom:1px solid #F3F4F6;">
+          <div style="font-size:13px;font-weight:500;">${fieldText(tf['任務說明'])}</div>
+          <div style="font-size:11px;color:#9CA3AF;margin-top:2px;">${proj ? fieldText(proj.fields['專案名稱']) : ''} · 逾期 ${days} 天</div>
+        </div>`
+    }).join('')}`
+}
+
 function selectProject(p) {
   _selectedProject = p
-  loadProjects()
+  renderProjectList()
   renderTaskPanel(p)
 }
 
