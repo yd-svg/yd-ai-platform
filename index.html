@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI 數位轉型管理平台</title>
+  <title>Lark AI內部服務中心</title>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -67,10 +67,10 @@
   <div style="max-width:1200px; margin:0 auto; padding:0 24px; display:flex; align-items:center; gap:24px; height:56px;">
     <span style="font-weight:700; font-size:14px; letter-spacing:-0.3px; white-space:nowrap;">AI 數位轉型</span>
     <div style="display:flex; gap:4px; flex:1;">
-      <button class="nav-tab active" onclick="showPage('service')">AI 服務中心</button>
-      <button class="nav-tab" onclick="showPage('tickets')">工單管理</button>
-      <button class="nav-tab" onclick="showPage('projects')">專案管理</button>
-      <button class="nav-tab" onclick="showPage('results')">AI 成果中心</button>
+      <button class="nav-tab active" onclick="showPage('service')">Lark工單服務</button>
+      <button class="nav-tab" onclick="showPage('tickets')">Lark工單管理</button>
+      <button class="nav-tab" onclick="showPage('projects')">AI專案管理</button>
+      <button class="nav-tab" onclick="showPage('results')">AI成果中心</button>
     </div>
     <div style="width:32px;height:32px;background:#F3F4F6;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#6B7280;">我</div>
   </div>
@@ -79,13 +79,13 @@
 <div style="max-width:1200px; margin:0 auto; padding:32px 24px;">
 
 <!-- ═══════════════════════════════════════════════════
-     PAGE 1：AI 服務中心
+     PAGE 1：Lark工單服務
 ═══════════════════════════════════════════════════ -->
 <div id="page-service" class="page active">
   <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:32px;">
     <div>
-      <h1 style="font-size:24px;font-weight:700;margin:0 0 4px;">AI 服務中心</h1>
-      <p style="font-size:14px;color:#6B7280;margin:0;">提交工單，讓 AI 團隊協助你解決問題</p>
+      <h1 style="font-size:24px;font-weight:700;margin:0 0 4px;">Lark工單服務</h1>
+      <p style="font-size:14px;color:#6B7280;margin:0;">在Lark上有需要處理或者新增的AI工具都可以填寫，完成會發送通知！</p>
     </div>
     <button class="btn btn-primary" onclick="openModal('ticket-modal')" style="display:flex;align-items:center;gap:6px;white-space:nowrap;">
       + 新增工單
@@ -115,7 +115,7 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════
-     PAGE 2：工單管理
+     PAGE 2：Lark工單管理
 ═══════════════════════════════════════════════════ -->
 <div id="page-tickets" class="page">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:32px;">
@@ -128,7 +128,7 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════
-     PAGE 3：專案管理
+     PAGE 3：AI專案管理
 ═══════════════════════════════════════════════════ -->
 <div id="page-projects" class="page">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
@@ -153,7 +153,7 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════
-     PAGE 4：AI 成果中心
+     PAGE 4：AI成果中心
 ═══════════════════════════════════════════════════ -->
 <div id="page-results" class="page">
   <h1 style="font-size:24px;font-weight:700;margin:0 0 32px;">AI 成果中心</h1>
