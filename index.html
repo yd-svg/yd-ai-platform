@@ -165,10 +165,11 @@
 ═══════════════════════════════════════════════════ -->
 <div id="page-results" class="page">
   <h1 style="font-size:24px;font-weight:700;margin:0 0 32px;">AI成果中心</h1>
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:32px;">
-    <div class="card"><div style="font-size:28px;font-weight:700;" id="res-projects">—</div><div style="font-size:13px;color:#6B7280;margin-top:4px;">累積專案</div></div>
-    <div class="card"><div style="font-size:28px;font-weight:700;" id="res-tickets">—</div><div style="font-size:13px;color:#6B7280;margin-top:4px;">累積工單</div></div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:32px;">
+    <div class="card"><div style="font-size:28px;font-weight:700;" id="res-projects">—</div><div style="font-size:13px;color:#6B7280;margin-top:4px;">進行中專案</div></div>
+    <div class="card"><div style="font-size:28px;font-weight:700;" id="res-tickets">—</div><div style="font-size:13px;color:#6B7280;margin-top:4px;">進行中工單</div></div>
     <div class="card"><div style="font-size:28px;font-weight:700;" id="res-completed">—</div><div style="font-size:13px;color:#6B7280;margin-top:4px;">已完成專案</div></div>
+    <div class="card"><div style="font-size:28px;font-weight:700;" id="res-completed-tickets">—</div><div style="font-size:13px;color:#6B7280;margin-top:4px;">已完成工單</div></div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px;">
     <div class="card">
@@ -352,7 +353,7 @@
 // 設定區 — 填入你的 Lark 資訊
 // ═══════════════════════════════════════════════════
 const CONFIG = {
-  larkAppId: 'cli_aab0a79779f89e13',   // 在 Lark 開發者後台「憑證與基礎信息」可以找到，不是機密，可放前端
+  larkAppId: '請填入你的 Lark App ID',   // 在 Lark 開發者後台「憑證與基礎信息」可以找到，不是機密，可放前端
   appToken:  'Ush0bCKtAa08h7slpVVjqG10pIg',
   tables: {
     tickets:       'tbllYQJY0mPyY0rb',
@@ -957,10 +958,15 @@ async function loadResults() {
       listRecords(CONFIG.tables.roadmap, { page_size: 50 }),
     ])
 
-    const completed = projects.filter(p => p.fields['目前階段'] === '已完成')
-    document.getElementById('res-projects').textContent = projects.length
-    document.getElementById('res-tickets').textContent = tickets.length
-    document.getElementById('res-completed').textContent = completed.length
+    const completedProjects = projects.filter(p => fieldText(p.fields['目前階段']) === '結案')
+    const activeProjects = projects.filter(p => fieldText(p.fields['目前階段']) !== '結案')
+    const completedTickets = tickets.filter(t => fieldText(t.fields['狀態']) === '已完成')
+    const activeTickets = tickets.filter(t => fieldText(t.fields['狀態']) !== '已完成')
+
+    document.getElementById('res-projects').textContent = activeProjects.length
+    document.getElementById('res-tickets').textContent = activeTickets.length
+    document.getElementById('res-completed').textContent = completedProjects.length
+    document.getElementById('res-completed-tickets').textContent = completedTickets.length
 
     // 專案狀態圖
     const stages = ['規劃中','開發中','測試中','已完成','暫停']
