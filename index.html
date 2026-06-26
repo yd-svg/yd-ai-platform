@@ -533,7 +533,7 @@ function ticketCard(t) {
           ${f['優先度'] ? badge(f['優先度']) : ''}
           ${f['工單性質'] ? badge(f['工單性質']) : ''}
         </div>
-        <button onclick="openEditTicket('${t.record_id}','${(f['狀態']||'').replace(/'/g,"\\'")}','${(f['優先度']||'').replace(/'/g,"\\'")}','${(f['工單性質']||'').replace(/'/g,"\\'")}','${(f['截止日期']||'')}')" style="font-size:12px;color:#6B7280;background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;">編輯</button>
+        <button onclick="openEditTicket('${t.record_id}','${fieldText(f['狀態']).replace(/'/g,"\\'")}','${fieldText(f['優先度']).replace(/'/g,"\\'")}','${fieldText(f['工單性質']).replace(/'/g,"\\'")}','${(f['截止日期']||'')}')" style="font-size:12px;color:#6B7280;background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;">編輯</button>
       </div>
     </div>`
 }
