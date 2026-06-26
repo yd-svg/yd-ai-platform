@@ -65,12 +65,12 @@
 <!-- 導覽列 -->
 <nav style="background:#fff; border-bottom:1px solid #E5E7EB; position:sticky; top:0; z-index:40;">
   <div style="max-width:1200px; margin:0 auto; padding:0 24px; display:flex; align-items:center; gap:24px; height:56px;">
-    <span style="font-weight:700; font-size:14px; letter-spacing:-0.3px; white-space:nowrap;">AI 數位轉型</span>
+    
     <div style="display:flex; gap:4px; flex:1;">
-      <button class="nav-tab active" onclick="showPage('service')">Lark工單服務</button>
-      <button class="nav-tab" onclick="showPage('tickets')">Lark工單管理</button>
-      <button class="nav-tab" onclick="showPage('projects')">AI專案管理</button>
-      <button class="nav-tab" onclick="showPage('results')">AI成果中心</button>
+      <button class="nav-tab active" onclick="showPage('service')">AI 服務中心</button>
+      <button class="nav-tab" onclick="showPage('tickets')">工單管理</button>
+      <button class="nav-tab" onclick="showPage('projects')">專案管理</button>
+      <button class="nav-tab" onclick="showPage('results')">AI 成果中心</button>
     </div>
     <div style="width:32px;height:32px;background:#F3F4F6;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#6B7280;">我</div>
   </div>
@@ -79,13 +79,13 @@
 <div style="max-width:1200px; margin:0 auto; padding:32px 24px;">
 
 <!-- ═══════════════════════════════════════════════════
-     PAGE 1：Lark工單服務
+     PAGE 1：AI 服務中心
 ═══════════════════════════════════════════════════ -->
 <div id="page-service" class="page active">
   <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:32px;">
     <div>
-      <h1 style="font-size:24px;font-weight:700;margin:0 0 4px;">Lark工單服務</h1>
-      <p style="font-size:14px;color:#6B7280;margin:0;">在Lark上有需要處理或者新增的AI工具都可以填寫，完成會發送通知！</p>
+      <h1 style="font-size:24px;font-weight:700;margin:0 0 4px;">AI 服務中心</h1>
+      <p style="font-size:14px;color:#6B7280;margin:0;">提交工單，讓 AI 團隊協助你解決問題</p>
     </div>
     <button class="btn btn-primary" onclick="openModal('ticket-modal')" style="display:flex;align-items:center;gap:6px;white-space:nowrap;">
       + 新增工單
@@ -100,22 +100,17 @@
     <div class="card"><div style="font-size:28px;font-weight:700;" id="stat-done">—</div><div style="font-size:13px;color:#6B7280;margin-top:4px;">已完成</div></div>
   </div>
 
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+  <div>
     <!-- 公告 -->
     <div class="card">
       <div style="font-size:14px;font-weight:600;margin-bottom:16px;">最新公告</div>
       <div id="announcements-list"><div class="spinner"></div></div>
     </div>
-    <!-- 我的工單 -->
-    <div class="card">
-      <div style="font-size:14px;font-weight:600;margin-bottom:16px;">我的工單</div>
-      <div id="my-tickets-list"><div class="spinner"></div></div>
-    </div>
   </div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════
-     PAGE 2：Lark工單管理
+     PAGE 2：工單管理
 ═══════════════════════════════════════════════════ -->
 <div id="page-tickets" class="page">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:32px;">
@@ -128,7 +123,7 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════
-     PAGE 3：AI專案管理
+     PAGE 3：專案管理
 ═══════════════════════════════════════════════════ -->
 <div id="page-projects" class="page">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
@@ -153,7 +148,7 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════
-     PAGE 4：AI成果中心
+     PAGE 4：AI 成果中心
 ═══════════════════════════════════════════════════ -->
 <div id="page-results" class="page">
   <h1 style="font-size:24px;font-weight:700;margin:0 0 32px;">AI 成果中心</h1>
@@ -344,8 +339,7 @@
 // 設定區 — 填入你的 Lark 資訊
 // ═══════════════════════════════════════════════════
 const CONFIG = {
-  
-  
+  larkAppId: '請填入你的 Lark App ID',   // 在 Lark 開發者後台「憑證與基礎信息」可以找到，不是機密，可放前端
   appToken:  'Ush0bCKtAa08h7slpVVjqG10pIg',
   tables: {
     tickets:       'tbllYQJY0mPyY0rb',
@@ -407,6 +401,10 @@ async function updateRecord(tbl, id, fields) {
 // 頁面切換
 // ═══════════════════════════════════════════════════
 function showPage(name) {
+  if (name !== 'service' && !_isAuthorized) {
+    alert('您沒有權限查看此頁面')
+    return
+  }
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'))
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'))
   document.getElementById('page-' + name).classList.add('active')
@@ -451,7 +449,7 @@ async function loadService() {
       listRecords(CONFIG.tables.announcements, { page_size: 5 })
     ])
 
-    const count = (s) => tickets.filter(t => t.fields['任務狀態'] === s).length
+    const count = (s) => tickets.filter(t => t.fields['狀態'] === s).length
     document.getElementById('stat-pending').textContent = count('待處理')
     document.getElementById('stat-processing').textContent = count('處理中')
     document.getElementById('stat-waiting').textContent = count('等待確認')
@@ -465,19 +463,8 @@ async function loadService() {
         <div style="font-size:12px;color:#9CA3AF;margin-top:2px;">${fmtDate(a.fields['發布日期'])}</div>
       </div>`).join('')
 
-    const tkEl = document.getElementById('my-tickets-list')
-    if (!tickets.length) { tkEl.innerHTML = '<div class="empty">還沒有工單</div>'; }
-    else tkEl.innerHTML = tickets.slice(0, 8).map(t => `
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #E5E7EB;gap:12px;">
-        <div>
-          <div style="font-size:14px;font-weight:500;">${t.fields['任務名稱'] || ''}</div>
-          <div style="font-size:12px;color:#9CA3AF;margin-top:2px;">${t.fields['相關部門'] || ''}</div>
-        </div>
-        ${badge(t.fields['任務狀態'])}
-      </div>`).join('')
   } catch(e) {
     console.error(e)
-    document.getElementById('my-tickets-list').innerHTML = `<div class="empty" style="color:#DC2626;">載入失敗：${e.message}</div>`
   }
 }
 
@@ -494,7 +481,7 @@ async function loadTickets() {
     document.getElementById('tickets-count').textContent = `共 ${tickets.length} 張工單`
 
     el.innerHTML = TICKET_STATUSES.map(status => {
-      const items = tickets.filter(t => t.fields['任務狀態'] === status)
+      const items = tickets.filter(t => t.fields['狀態'] === status)
       return `
         <div class="kanban-col">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
@@ -523,7 +510,7 @@ function ticketCard(t) {
           ${f['優先度'] ? badge(f['優先度']) : ''}
           ${f['工單性質'] ? badge(f['工單性質']) : ''}
         </div>
-        <button onclick="openEditTicket('${t.record_id}','${(f['任務狀態']||'').replace(/'/g,"\\'")}','${(f['優先度']||'').replace(/'/g,"\\'")}','${(f['工單性質']||'').replace(/'/g,"\\'")}','${(f['截止日期']||'')}')" style="font-size:12px;color:#6B7280;background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;">編輯</button>
+        <button onclick="openEditTicket('${t.record_id}','${(f['狀態']||'').replace(/'/g,"\\'")}','${(f['優先度']||'').replace(/'/g,"\\'")}','${(f['工單性質']||'').replace(/'/g,"\\'")}','${(f['截止日期']||'')}')" style="font-size:12px;color:#6B7280;background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;">編輯</button>
       </div>
     </div>`
 }
@@ -579,7 +566,7 @@ function closeEditTicket() {
 
 async function saveEditTicket() {
   const fields = {
-    任務狀態: document.getElementById('edit-status').value,
+    狀態: document.getElementById('edit-status').value,
     工單性質: document.getElementById('edit-nature').value,
     優先度: document.getElementById('edit-priority').value,
   }
@@ -611,7 +598,7 @@ async function submitTicket() {
       相關部門: dept,
       問題描述: document.getElementById('t-desc').value,
       日期: Date.now(),
-      任務狀態: '待處理',
+      狀態: '待處理',
     })
     closeModal('ticket-modal')
     ;['t-title','t-submitter','t-desc'].forEach(id => document.getElementById(id).value='')
@@ -849,9 +836,66 @@ async function loadResults() {
 }
 
 // ═══════════════════════════════════════════════════
+// 權限驗證（Lark OAuth 登入）
+// ═══════════════════════════════════════════════════
+let _isAuthorized = false
+
+async function initAuth() {
+  // 已經驗證過的結果先用快取，避免每次切換都重新跑一次登入流程
+  const cached = sessionStorage.getItem('lark_auth')
+  if (cached) {
+    applyAuthResult(JSON.parse(cached))
+    return
+  }
+
+  const urlParams = new URLSearchParams(window.location.search)
+  const code = urlParams.get('code')
+
+  if (!code) {
+    // 還沒有授權碼，導去 Lark 授權登入（在 Lark App 內會自動完成，不會跳出登入畫面）
+    const redirectUri = window.location.href.split('?')[0].split('#')[0]
+    const state = Math.random().toString(36).slice(2)
+    const authUrl = 'https://open.larksuite.com/open-apis/authen/v1/index'
+      + '?app_id=' + encodeURIComponent(CONFIG.larkAppId)
+      + '&redirect_uri=' + encodeURIComponent(redirectUri)
+      + '&state=' + state
+    window.location.href = authUrl
+    return
+  }
+
+  try {
+    const res = await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    })
+    const data = await res.json()
+    if (data.error) throw new Error(data.error)
+    sessionStorage.setItem('lark_auth', JSON.stringify(data))
+    // 清掉網址上的 code 參數，避免殘留
+    window.history.replaceState({}, '', window.location.pathname)
+    applyAuthResult(data)
+  } catch (e) {
+    console.error('登入驗證失敗：', e)
+    applyAuthResult({ authorized: false })
+  }
+}
+
+function applyAuthResult(data) {
+  _isAuthorized = !!data.authorized
+  if (!_isAuthorized) {
+    // 沒有權限：隱藏其他三個分頁的導覽按鈕
+    document.querySelectorAll('.nav-tab').forEach((btn, idx) => {
+      if (idx > 0) btn.style.display = 'none'
+    })
+  }
+  loadService()
+}
+
+// ═══════════════════════════════════════════════════
 // 初始化
 // ═══════════════════════════════════════════════════
-loadService()
+initAuth()
 </script>
 </body>
 </html>
