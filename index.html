@@ -374,7 +374,8 @@ async function getToken() {
 
 async function larkFetch(path, opts = {}) {
   const token = await getToken()
-  const res = await fetch('https://open.larksuite.com/open-apis' + path, {
+  // 改為呼叫 Vercel 的代理路由 /api/lark，由伺服器端轉發給 Lark，避免瀏覽器直接呼叫造成的 CORS 問題
+  const res = await fetch('/api/lark?path=' + encodeURIComponent(path), {
     ...opts,
     headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json', ...(opts.headers || {}) }
   })
