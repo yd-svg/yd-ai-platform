@@ -460,7 +460,91 @@ function fieldText(v) {
   return String(v)
 }
 
-function badge(label) {
+// ═══════════════════════════════════════════════════
+// 專案任務編輯彈窗（列表 + 甘特圖共用）
+// ═══════════════════════════════════════════════════
+let _editProjTaskId = null
+const PROJ_TASK_STATUSES = ['待處理', '進行中', '處理中', '已完成', '卡關', '暫停']
+
+function openEditProjectTask(taskId) {
+  const t = _allTasks.find(x => x.record_id === taskId)
+  if (!t) return
+  _editProjTaskId = taskId
+  const f = t.fields
+  const curStatus = fieldText(f['任務狀態'])
+  const toDateInput = (ts) => ts ? new Date(Number(ts)).toISOString().split('T')[0] : ''
+  const html = `
+    <div id="edit-ptask-overlay" onclick="if(event.target===this)closeEditProjectTask()" style="position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:60;display:flex;align-items:center;justify-content:center;padding:16px;">
+      <div style="background:#fff;border-radius:16px;width:100%;max-width:420px;border:1px solid #E5E7EB;box-shadow:0 8px 32px rgba(0,0,0,0.12);max-height:90vh;overflow-y:auto;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #E5E7EB;">
+          <div style="font-size:15px;font-weight:600;">編輯任務</div>
+          <button onclick="closeEditProjectTask()" style="background:none;border:none;cursor:pointer;font-size:18px;color:#9CA3AF;">✕</button>
+        </div>
+        <div style="padding:16px 20px;display:grid;gap:12px;">
+          <div>
+            <label style="font-size:13px;font-weight:500;display:block;margin-bottom:4px;">任務說明</label>
+            <input class="input" id="ptask-name" value="${(fieldText(f['任務說明'])||'').replace(/"/g,'&quot;')}" />
+          </div>
+          <div>
+            <label style="font-size:13px;font-weight:500;display:block;margin-bottom:4px;">產出/完成標準</label>
+            <textarea class="input" id="ptask-output" rows="2">${fieldText(f['產出項目'])||''}</textarea>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div>
+              <label style="font-size:13px;font-weight:500;display:block;margin-bottom:4px;">開始日期</label>
+              <input class="input" type="date" id="ptask-start" value="${toDateInput(f['開始日期'])}" />
+            </div>
+            <div>
+              <label style="font-size:13px;font-weight:500;display:block;margin-bottom:4px;">截止日期</label>
+              <input class="input" type="date" id="ptask-due" value="${toDateInput(f['截止日期'])}" />
+            </div>
+          </div>
+          <div>
+            <label style="font-size:13px;font-weight:500;display:block;margin-bottom:4px;">狀態</label>
+            <select class="input" id="ptask-status">
+              ${PROJ_TASK_STATUSES.map(s => `<option${s===curStatus?' selected':''}>${s}</option>`).join('')}
+            </select>
+          </div>
+          <div>
+            <label style="font-size:13px;font-weight:500;display:block;margin-bottom:4px;">負責人</label>
+            <input class="input" id="ptask-owner" value="${(fieldText(f['負責人'])||'').replace(/"/g,'&quot;')}" placeholder="（人員欄位由 Lark 指派，此處僅顯示）" disabled />
+          </div>
+        </div>
+        <div style="padding:0 20px 20px;display:flex;gap:8px;justify-content:flex-end;">
+          <button class="btn btn-secondary" onclick="closeEditProjectTask()">取消</button>
+          <button class="btn btn-primary" onclick="saveEditProjectTask()">儲存</button>
+        </div>
+      </div>
+    </div>`
+  document.body.insertAdjacentHTML('beforeend', html)
+}
+
+function closeEditProjectTask() {
+  document.getElementById('edit-ptask-overlay')?.remove()
+  _editProjTaskId = null
+}
+
+async function saveEditProjectTask() {
+  const fields = {
+    任務說明: document.getElementById('ptask-name').value.trim(),
+    產出項目: document.getElementById('ptask-output').value.trim(),
+    任務狀態: document.getElementById('ptask-status').value,
+  }
+  const start = document.getElementById('ptask-start').value
+  const due = document.getElementById('ptask-due').value
+  if (start) fields['開始日期'] = new Date(start).getTime()
+  if (due) fields['截止日期'] = new Date(due).getTime()
+  try {
+    await updateRecord(CONFIG.tables.tasks, _editProjTaskId, fields)
+    closeEditProjectTask()
+    // 重新抓資料並刷新目前畫面（列表 or 甘特圖）
+    _allTasks = await listRecords(CONFIG.tables.tasks, { page_size: 500 })
+    if (_selectedProject) renderTaskPanel(_selectedProject)
+    if (_projectView === 'gantt') renderGantt(_projectsCache)
+  } catch(e) { alert('儲存失敗：' + e.message) }
+}
+
+
   label = fieldText(label)
   const map = {
     '已完成': 'green', '進行中': 'blue', '處理中': 'blue', '開發中': 'blue',
@@ -835,25 +919,47 @@ function renderGantt(projects) {
     const behind = progressPct < elapsedPct - 10
     const cardId = 'g2card' + blockIdx
 
-    const leftRows = tasks.map(t => `
-      <div style="height:40px;padding:5px 10px;border-bottom:1px solid #F3F4F6;display:flex;flex-direction:column;justify-content:center;">
-        <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${fieldText(t.fields['任務說明'])}</div>
-        <div style="font-size:10px;color:#9CA3AF;margin-top:1px;">${fmtDate(t.fields['開始日期'])}–${fmtDate(t.fields['截止日期'])}</div>
-      </div>`).join('')
+    // 依「階段」分組：左邊顯示階段大項，右邊該階段內每筆任務各自一條長條（同一階段內堆疊顯示）
+    const groups = {}
+    const order = []
+    tasks.forEach(t => {
+      const stage = fieldText(t.fields['階段']) || '未分類'
+      if (!groups[stage]) { groups[stage] = []; order.push(stage) }
+      groups[stage].push(t)
+    })
+    order.forEach(stage => groups[stage].sort((a, b) => (parseFloat(fieldText(a.fields['子序']))||0) - (parseFloat(fieldText(b.fields['子序']))||0)))
 
-    const barRows = tasks.map(t => {
-      const tf = t.fields
-      const s = new Date(tf['開始日期']).getTime()
-      const e = new Date(tf['截止日期']).getTime()
-      const bx = g2Dif(vs, new Date(s)) * CW
-      const bw = Math.max((g2Dif(new Date(s), new Date(e)) + 1) * CW - 2, 4)
-      const isOverdue = e < todayMs && fieldText(tf['任務狀態']) !== '已完成'
-      const color = isOverdue ? '#EF4444' : (colors[fieldText(tf['任務狀態'])] || '#9CA3AF')
-      const visible = bx + bw >= 0 && bx <= tw
-      return `<div style="height:40px;border-bottom:1px solid #F3F4F6;position:relative;">
-        ${visible ? `<div title="${fieldText(tf['任務說明'])}：${fmtDate(tf['開始日期'])} ～ ${fmtDate(tf['截止日期'])}${isOverdue?'（逾期）':''}"
-             style="position:absolute;left:${bx}px;width:${bw}px;top:50%;transform:translateY(-50%);height:20px;background:${color};border-radius:5px;"></div>` : ''}
+    const rowH = 26 // 每筆任務長條的高度
+    const leftRows = order.map(stage => {
+      const items = groups[stage]
+      const groupHeight = items.length * rowH
+      return `
+      <div style="height:${groupHeight}px;padding:6px 10px;border-bottom:1px solid #F3F4F6;display:flex;flex-direction:column;justify-content:center;background:#FAFAF9;">
+        <div style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${stage}</div>
+        <div style="font-size:10px;color:#9CA3AF;margin-top:1px;">${items.length} 項任務</div>
       </div>`
+    }).join('')
+
+    const barRows = order.map(stage => {
+      const items = groups[stage]
+      const groupHeight = items.length * rowH
+      const bars = items.map((t, i) => {
+        const tf = t.fields
+        const s = new Date(tf['開始日期']).getTime()
+        const e = new Date(tf['截止日期']).getTime()
+        const bx = g2Dif(vs, new Date(s)) * CW
+        const bw = Math.max((g2Dif(new Date(s), new Date(e)) + 1) * CW - 2, 4)
+        const isOverdue = e < todayMs && fieldText(tf['任務狀態']) !== '已完成'
+        const color = isOverdue ? '#EF4444' : (colors[fieldText(tf['任務狀態'])] || '#9CA3AF')
+        const visible = bx + bw >= 0 && bx <= tw
+        const top = i * rowH + 2
+        if (!visible) return ''
+        return `<div onclick="openEditProjectTask('${t.record_id}')" title="${fieldText(tf['任務說明'])}：${fmtDate(tf['開始日期'])} ～ ${fmtDate(tf['截止日期'])}${isOverdue?'（逾期）':''}（點擊編輯）"
+             style="position:absolute;left:${bx}px;width:${bw}px;top:${top}px;height:${rowH-6}px;background:${color};border-radius:5px;cursor:pointer;display:flex;align-items:center;padding:0 6px;overflow:hidden;">
+             <span style="font-size:9px;color:#fff;white-space:nowrap;">${fieldText(tf['任務說明'])}</span>
+           </div>`
+      }).join('')
+      return `<div style="height:${groupHeight}px;border-bottom:1px solid #F3F4F6;position:relative;">${bars}</div>`
     }).join('')
 
     return `
@@ -983,7 +1089,7 @@ function renderTaskPanel(p) {
                         const tf = t.fields
                         const isOverdue = tf['截止日期'] && new Date(tf['截止日期']) < today && tf['任務狀態'] !== '已完成'
                         return `
-                          <tr style="border-bottom:1px solid #F3F4F6;${isOverdue ? 'background:#FEF2F2;' : ''}">
+                          <tr onclick="openEditProjectTask('${t.record_id}')" style="cursor:pointer;border-bottom:1px solid #F3F4F6;${isOverdue ? 'background:#FEF2F2;' : ''}" onmouseover="this.style.background='#F9FAFB'" onmouseout="this.style.background='${isOverdue ? '#FEF2F2' : ''}'">
                             <td style="padding:10px 12px;color:#9CA3AF;vertical-align:top;">${fieldText(tf['子序'])}</td>
                             <td style="padding:10px 12px;font-weight:500;vertical-align:top;">${fieldText(tf['任務說明'])}</td>
                             <td style="padding:10px 12px;color:#6B7280;vertical-align:top;">${fieldText(tf['產出項目'])}</td>
