@@ -1252,11 +1252,17 @@ async function loadResults() {
 let _isAuthorized = false
 
 async function initAuth() {
-  // 已經驗證過的結果先用快取，避免每次切換都重新跑一次登入流程
-  const cached = sessionStorage.getItem('lark_auth')
-  if (cached) {
-    applyAuthResult(JSON.parse(cached))
-    return
+  // 已經驗證過的結果先用快取（存 8 小時），避免每次重開都要重新跑一次跳轉登入流程
+  const cachedRaw = localStorage.getItem('lark_auth')
+  if (cachedRaw) {
+    try {
+      const cached = JSON.parse(cachedRaw)
+      if (cached._cachedAt && Date.now() - cached._cachedAt < 8 * 60 * 60 * 1000) {
+        applyAuthResult(cached)
+        return
+      }
+    } catch(e) {}
+    localStorage.removeItem('lark_auth')
   }
 
   const urlParams = new URLSearchParams(window.location.search)
@@ -1282,7 +1288,8 @@ async function initAuth() {
     })
     const data = await res.json()
     if (data.error) throw new Error(data.error)
-    sessionStorage.setItem('lark_auth', JSON.stringify(data))
+    data._cachedAt = Date.now()
+    localStorage.setItem('lark_auth', JSON.stringify(data))
     // 清掉網址上的 code 參數，避免殘留
     window.history.replaceState({}, '', window.location.pathname)
     applyAuthResult(data)
