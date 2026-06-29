@@ -138,9 +138,22 @@
       </button>
     </div>
   </div>
-  <div id="project-gantt-wrap" style="display:none;margin-bottom:24px;gap:16px;">
-    <div class="card" id="project-gantt" style="flex:1;"></div>
-    <div class="card" id="project-gantt-alerts" style="width:260px;flex-shrink:0;"></div>
+  <div id="project-gantt-wrap" style="display:none;margin-bottom:24px;gap:16px;flex-direction:column;">
+    <div class="card" style="padding:7px 12px;display:flex;align-items:center;gap:8px;">
+      <button class="btn" onclick="g2Today()" style="padding:4px 10px;">今天</button>
+      <button class="btn" onclick="g2Shift(-1)" style="padding:4px 8px;">◀</button>
+      <button class="btn" onclick="g2Shift(1)" style="padding:4px 8px;">▶</button>
+      <span id="g2-label" style="font-size:13px;font-weight:600;flex:1;text-align:center;"></span>
+      <div style="display:flex;border:1px solid #E5E7EB;border-radius:6px;overflow:hidden;">
+        <button class="g2-vb" data-m="week" onclick="g2SetView('week')" style="padding:4px 10px;border:none;background:#fff;font-size:11px;cursor:pointer;border-right:1px solid #E5E7EB;">週</button>
+        <button class="g2-vb active" data-m="month" onclick="g2SetView('month')" style="padding:4px 10px;border:none;background:#1A1A1A;color:#fff;font-size:11px;cursor:pointer;border-right:1px solid #E5E7EB;">月</button>
+        <button class="g2-vb" data-m="quarter" onclick="g2SetView('quarter')" style="padding:4px 10px;border:none;background:#fff;font-size:11px;cursor:pointer;">季</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:16px;">
+      <div style="flex:1;min-width:0;" id="project-gantt"></div>
+      <div class="card" id="project-gantt-alerts" style="width:260px;flex-shrink:0;"></div>
+    </div>
   </div>
   <div id="project-list-wrap" style="display:flex;gap:24px;height:calc(100vh - 200px);">
     <!-- 左側專案列表 -->
@@ -709,6 +722,51 @@ function renderProjectList() {
     <button class="btn" style="padding:4px 10px;" onclick="_projectPage++;renderProjectList()" ${_projectPage>=totalPages-1?'disabled':''}>下一頁 ›</button>`
 }
 
+// ── 甘特圖：週/月/季 時間軸控制（參考設計） ──
+let g2Mode = 'month', g2Off = 0
+const G2_TODAY = new Date(); G2_TODAY.setHours(0,0,0,0)
+
+function g2Dif(a, b) { return Math.round((b - a) / 86400000) }
+
+function g2GetRange() {
+  if (g2Mode === 'week') {
+    const s = new Date(G2_TODAY); s.setDate(s.getDate() + g2Off * 7)
+    const dow = s.getDay(); const monOff = dow === 0 ? -6 : 1 - dow
+    s.setDate(s.getDate() + monOff)
+    const e = new Date(s); e.setDate(e.getDate() + 6)
+    return { s, e }
+  } else if (g2Mode === 'month') {
+    const s = new Date(G2_TODAY.getFullYear(), G2_TODAY.getMonth() + g2Off, 1)
+    const e = new Date(G2_TODAY.getFullYear(), G2_TODAY.getMonth() + g2Off + 3, 0)
+    return { s, e }
+  } else {
+    const qStart = Math.floor(G2_TODAY.getMonth() / 3) * 3
+    const s = new Date(G2_TODAY.getFullYear(), qStart + g2Off * 3, 1)
+    const e = new Date(s.getFullYear(), s.getMonth() + 3, 0)
+    return { s, e }
+  }
+}
+
+function g2UpdateLabel() {
+  const r = g2GetRange()
+  const lbl = document.getElementById('g2-label')
+  if (lbl) lbl.textContent = `${r.s.getMonth()+1}/${r.s.getDate()} — ${r.e.getMonth()+1}/${r.e.getDate()}`
+}
+
+function g2SetView(mode) {
+  g2Mode = mode; g2Off = 0
+  document.querySelectorAll('.g2-vb').forEach(b => {
+    const active = b.dataset.m === mode
+    b.style.background = active ? '#1A1A1A' : '#fff'
+    b.style.color = active ? '#fff' : '#1A1A1A'
+  })
+  g2UpdateLabel()
+  renderGantt(_projectsCache)
+}
+
+function g2Shift(d) { g2Off += d; g2UpdateLabel(); renderGantt(_projectsCache) }
+function g2Today() { g2Off = 0; g2UpdateLabel(); renderGantt(_projectsCache) }
+
 function getProjectTasks(p) {
   return _allTasks.filter(t => {
     const linked = t.fields['所屬專案']
@@ -722,81 +780,117 @@ function getProjectTasks(p) {
 function renderGantt(projects) {
   const el = document.getElementById('project-gantt')
   const alertsEl = document.getElementById('project-gantt-alerts')
-  const today = new Date(); today.setHours(0,0,0,0)
-  const todayMs = today.getTime()
+  if (!el) return
+  g2UpdateLabel()
+  const todayMs = G2_TODAY.getTime()
   const colors = { '已完成': '#10B981', '進行中': '#3B82F6', '處理中': '#3B82F6', '待處理': '#9CA3AF', '待開始': '#9CA3AF', '卡關': '#EF4444', '暫停': '#F59E0B' }
 
-  // 蒐集所有有日期的任務（跨全部專案），決定整體時間軸範圍
-  const blocks = projects.map(p => ({ project: p, tasks: getProjectTasks(p).filter(t => t.fields['開始日期'] && t.fields['截止日期']) }))
-                          .filter(b => b.tasks.length)
+  const blocks = (projects || []).map(p => ({ project: p, tasks: getProjectTasks(p).filter(t => t.fields['開始日期'] && t.fields['截止日期']) }))
+                                  .filter(b => b.tasks.length)
 
   if (!blocks.length) {
-    el.innerHTML = '<div class="empty">目前沒有任務有完整的開始/截止日期，無法繪製甘特圖</div>'
-    alertsEl.innerHTML = ''
+    el.innerHTML = '<div class="card empty">目前沒有任務有完整的開始/截止日期，無法繪製甘特圖</div>'
+    if (alertsEl) alertsEl.innerHTML = ''
     return
   }
 
   const allTasks = blocks.flatMap(b => b.tasks)
-  const minDate = Math.min(...allTasks.map(t => new Date(t.fields['開始日期']).getTime()))
-  const maxDate = Math.max(...allTasks.map(t => new Date(t.fields['截止日期']).getTime()))
-  const span = Math.max(maxDate - minDate, 1)
-  const todayPct = Math.min(Math.max(((todayMs - minDate) / span) * 100, 0), 100)
-  const todayInRange = todayMs >= minDate && todayMs <= maxDate
+  const range = g2GetRange()
+  const vs = range.s, ve = range.e
+  const total = g2Dif(vs, ve) + 1
+  const CW = g2Mode === 'week' ? 64 : g2Mode === 'month' ? 28 : 18
+  const tw = total * CW
+  const toff = g2Dif(vs, G2_TODAY)
+  const tx = toff * CW
+  const showTodayLine = toff >= 0 && toff <= total
 
-  el.innerHTML = `
-    <div style="position:relative;">
-      ${todayInRange ? `
-        <div style="position:absolute;top:0;bottom:0;left:calc(150px + 12px + (100% - 150px - 12px) * ${(todayPct/100).toFixed(4)});width:0;border-left:2px dashed #16A34A;z-index:5;pointer-events:none;">
-          <div style="position:absolute;top:-18px;left:-14px;font-size:10px;color:#16A34A;font-weight:700;white-space:nowrap;background:#fff;padding:0 2px;">今天</div>
-        </div>` : ''}
-      ${blocks.map(({ project: p, tasks }) => {
-        const totalN = tasks.length
-        const doneN = tasks.filter(t => fieldText(t.fields['任務狀態']) === '已完成').length
-        const progressPct = totalN ? Math.round((doneN / totalN) * 100) : 0
-        const pStart = Math.min(...tasks.map(t => new Date(t.fields['開始日期']).getTime()))
-        const pEnd = Math.max(...tasks.map(t => new Date(t.fields['截止日期']).getTime()))
-        const elapsedPct = todayMs <= pStart ? 0 : todayMs >= pEnd ? 100 : Math.round(((todayMs - pStart) / Math.max(pEnd - pStart, 1)) * 100)
-        const behind = progressPct < elapsedPct - 10
-        return `
-        <div style="margin-bottom:20px;">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
-            <div style="width:8px;height:8px;border-radius:50%;background:#3B82F6;"></div>
-            <div style="font-weight:700;font-size:14px;">${p.fields['專案名稱'] || ''}</div>
-            ${p.fields['目前階段'] ? badge(p.fields['目前階段']) : ''}
-            <span style="font-size:12px;color:#6B7280;">任務進度 ${progressPct}%（${doneN}/${totalN}）· 時間已過 ${elapsedPct}%</span>
-            ${behind ? `<span class="badge badge-red">進度落後</span>` : `<span class="badge badge-green">進度正常</span>`}
+  // 月份標頭
+  let monthsHtml = ''
+  let mc = new Date(vs.getFullYear(), vs.getMonth(), 1)
+  let guard = 0
+  while (mc <= ve && guard < 24) {
+    guard++
+    const ms = new Date(Math.max(mc.getTime(), vs.getTime()))
+    const me = new Date(Math.min(new Date(mc.getFullYear(), mc.getMonth()+1, 0).getTime(), ve.getTime()))
+    const days = g2Dif(ms, me) + 1
+    if (days > 0) monthsHtml += `<div style="width:${days*CW}px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:#6B7280;border-right:1px solid #E5E7EB;">${mc.getMonth()+1}月</div>`
+    mc.setMonth(mc.getMonth() + 1)
+  }
+  // 日標頭
+  let daysHtml = ''
+  for (let i = 0; i < total; i++) {
+    const d = new Date(vs); d.setDate(d.getDate() + i)
+    const isToday = g2Dif(G2_TODAY, d) === 0
+    const lbl = g2Mode === 'week' ? `${d.getMonth()+1}/${d.getDate()}` : (d.getDate() === 1 || d.getDate() % 5 === 0 ? `${d.getMonth()+1}/${d.getDate()}` : '')
+    daysHtml += `<div style="width:${CW}px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:9px;color:${isToday ? '#16A34A' : '#9CA3AF'};font-weight:${isToday?700:400};background:${isToday?'rgba(22,163,74,.08)':'transparent'};border-right:1px solid rgba(229,231,235,.5);">${lbl}</div>`
+  }
+
+  el.innerHTML = blocks.map(({ project: p, tasks }, blockIdx) => {
+    const totalN = tasks.length
+    const doneN = tasks.filter(t => fieldText(t.fields['任務狀態']) === '已完成').length
+    const progressPct = totalN ? Math.round((doneN / totalN) * 100) : 0
+    const pStart = Math.min(...tasks.map(t => new Date(t.fields['開始日期']).getTime()))
+    const pEnd = Math.max(...tasks.map(t => new Date(t.fields['截止日期']).getTime()))
+    const elapsedPct = todayMs <= pStart ? 0 : todayMs >= pEnd ? 100 : Math.round(((todayMs - pStart) / Math.max(pEnd - pStart, 1)) * 100)
+    const behind = progressPct < elapsedPct - 10
+    const cardId = 'g2card' + blockIdx
+
+    const leftRows = tasks.map(t => `
+      <div style="height:40px;padding:5px 10px;border-bottom:1px solid #F3F4F6;display:flex;flex-direction:column;justify-content:center;">
+        <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${fieldText(t.fields['任務說明'])}</div>
+        <div style="font-size:10px;color:#9CA3AF;margin-top:1px;">${fmtDate(t.fields['開始日期'])}–${fmtDate(t.fields['截止日期'])}</div>
+      </div>`).join('')
+
+    const barRows = tasks.map(t => {
+      const tf = t.fields
+      const s = new Date(tf['開始日期']).getTime()
+      const e = new Date(tf['截止日期']).getTime()
+      const bx = g2Dif(vs, new Date(s)) * CW
+      const bw = Math.max((g2Dif(new Date(s), new Date(e)) + 1) * CW - 2, 4)
+      const isOverdue = e < todayMs && fieldText(tf['任務狀態']) !== '已完成'
+      const color = isOverdue ? '#EF4444' : (colors[fieldText(tf['任務狀態'])] || '#9CA3AF')
+      const visible = bx + bw >= 0 && bx <= tw
+      return `<div style="height:40px;border-bottom:1px solid #F3F4F6;position:relative;">
+        ${visible ? `<div title="${fieldText(tf['任務說明'])}：${fmtDate(tf['開始日期'])} ～ ${fmtDate(tf['截止日期'])}${isOverdue?'（逾期）':''}"
+             style="position:absolute;left:${bx}px;width:${bw}px;top:50%;transform:translateY(-50%);height:20px;background:${color};border-radius:5px;"></div>` : ''}
+      </div>`
+    }).join('')
+
+    return `
+    <div class="gc" style="background:#fff;border:1px solid #E5E7EB;border-radius:10px;margin-bottom:14px;overflow:hidden;">
+      <div style="padding:10px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #E5E7EB;flex-wrap:wrap;">
+        <div style="width:8px;height:8px;border-radius:50%;background:#3B82F6;flex-shrink:0;"></div>
+        <div style="font-weight:700;font-size:14px;">${p.fields['專案名稱'] || ''}</div>
+        ${p.fields['目前階段'] ? badge(p.fields['目前階段']) : ''}
+        <span style="font-size:12px;color:#6B7280;">進度 ${progressPct}%（${doneN}/${totalN}）· 時間已過 ${elapsedPct}%</span>
+        ${behind ? `<span class="badge badge-red">進度落後</span>` : `<span class="badge badge-green">進度正常</span>`}
+      </div>
+      <div style="display:flex;overflow:hidden;">
+        <div style="width:170px;flex-shrink:0;border-right:2px solid #E5E7EB;">
+          <div style="height:44px;border-bottom:1px solid #E5E7EB;background:#F9FAFB;"></div>
+          ${leftRows}
+        </div>
+        <div style="flex:1;overflow-x:auto;min-width:0;" id="${cardId}-scroll">
+          <div style="width:${tw}px;position:relative;">
+            <div style="display:flex;height:22px;border-bottom:1px solid #E5E7EB;background:#F9FAFB;">${monthsHtml}</div>
+            <div style="display:flex;height:22px;border-bottom:1px solid #E5E7EB;background:#F9FAFB;">${daysHtml}</div>
+            ${showTodayLine ? `<div style="position:absolute;top:0;bottom:0;left:${tx}px;width:0;border-left:2px solid #16A34A;z-index:5;pointer-events:none;"></div>` : ''}
+            ${barRows}
           </div>
-          <div style="display:flex;flex-direction:column;gap:6px;">
-            ${tasks.map(t => {
-              const tf = t.fields
-              const s = new Date(tf['開始日期']).getTime()
-              const e = new Date(tf['截止日期']).getTime()
-              const leftPct = ((s - minDate) / span) * 100
-              const widthPct = Math.max(((e - s) / span) * 100, 1.2)
-              const isOverdue = e < todayMs && tf['任務狀態'] !== '已完成'
-              const color = isOverdue ? '#EF4444' : (colors[fieldText(tf['任務狀態'])] || '#9CA3AF')
-              return `
-                <div style="display:flex;align-items:center;gap:12px;">
-                  <div style="width:150px;flex-shrink:0;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#374151;">${fieldText(tf['任務說明'])}</div>
-                  <div style="flex:1;position:relative;height:20px;background:#F3F4F6;border-radius:5px;">
-                    <div title="${fmtDate(tf['開始日期'])} ～ ${fmtDate(tf['截止日期'])}${isOverdue ? '（逾期）' : ''}"
-                         style="position:absolute;left:${leftPct}%;width:${widthPct}%;height:100%;background:${color};border-radius:5px;">
-                    </div>
-                  </div>
-                </div>`
-            }).join('')}
-          </div>
-        </div>`
-      }).join('')}
-    </div>
-    <div style="margin-top:12px;font-size:12px;color:#9CA3AF;display:flex;justify-content:space-between;">
-      <span>${fmtDate(minDate)}</span>
-      <span>${fmtDate(maxDate)}</span>
+        </div>
+      </div>
     </div>`
+  }).join('')
+
+  // 捲動到今天附近
+  blocks.forEach((_, idx) => {
+    const sc = document.getElementById('g2card' + idx + '-scroll')
+    if (sc && toff > 0) sc.scrollLeft = Math.max(0, tx - 200)
+  })
 
   // 逾期提醒清單
-  const overdue = allTasks.filter(t => new Date(t.fields['截止日期']).getTime() < todayMs && t.fields['任務狀態'] !== '已完成')
-  alertsEl.innerHTML = `
+  const overdue = allTasks.filter(t => new Date(t.fields['截止日期']).getTime() < todayMs && fieldText(t.fields['任務狀態']) !== '已完成')
+  if (alertsEl) alertsEl.innerHTML = `
     <div style="font-size:13px;font-weight:700;color:#DC2626;margin-bottom:10px;display:flex;align-items:center;gap:6px;">
       <span style="width:8px;height:8px;border-radius:50%;background:#DC2626;display:inline-block;"></span>
       已逾期 ${overdue.length}
