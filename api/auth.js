@@ -35,23 +35,20 @@ async function getTenantAccessToken() {
 }
 
 async function getUserIdentity(code, appAccessToken) {
-  const userTokenResp = await fetch('https://open.larksuite.com/open-apis/authen/v1/oidc/access_token', {
+  const userTokenResp = await fetch('https://open.larksuite.com/open-apis/authen/v1/access_token', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: 'Bearer ' + appAccessToken,
-    },
-    body: JSON.stringify({ grant_type: 'authorization_code', code }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ grant_type: 'authorization_code', code, app_access_token: appAccessToken }),
   })
   const userTokenData = await userTokenResp.json()
-  if (userTokenData.code !== 0) throw new Error('user_access_token 取得失敗：' + userTokenData.msg)
+  if (userTokenData.code !== 0) throw new Error('user_access_token 取得失敗：' + (userTokenData.msg || JSON.stringify(userTokenData)))
   const userAccessToken = userTokenData.data.access_token
 
   const userInfoResp = await fetch('https://open.larksuite.com/open-apis/authen/v1/user_info', {
     headers: { Authorization: 'Bearer ' + userAccessToken },
   })
   const userInfoData = await userInfoResp.json()
-  if (userInfoData.code !== 0) throw new Error('使用者資訊取得失敗：' + userInfoData.msg)
+  if (userInfoData.code !== 0) throw new Error('使用者資訊取得失敗：' + (userInfoData.msg || JSON.stringify(userInfoData)))
   return { openId: userInfoData.data.open_id, name: userInfoData.data.name }
 }
 
