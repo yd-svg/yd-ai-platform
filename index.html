@@ -72,7 +72,7 @@
       <button class="nav-tab" onclick="showPage('projects')">AI專案管理</button>
       <button class="nav-tab" onclick="showPage('results')">AI成果中心</button>
     </div>
-    <div style="width:32px;height:32px;background:#F3F4F6;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#6B7280;">我</div>
+    <div id="nav-user-badge" style="width:32px;height:32px;background:#F3F4F6;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#6B7280;" title="">我</div>
   </div>
 </nav>
 
@@ -1288,8 +1288,13 @@ async function initAuth() {
     })
     const data = await res.json()
     if (data.error) throw new Error(data.error)
-    data._cachedAt = Date.now()
-    localStorage.setItem('lark_auth', JSON.stringify(data))
+    if (data.authorized) {
+      // 只快取「有權限」的結果；沒有權限時不快取，避免誤判被存住，下次重新整理就能重新檢查
+      data._cachedAt = Date.now()
+      localStorage.setItem('lark_auth', JSON.stringify(data))
+    } else {
+      localStorage.removeItem('lark_auth')
+    }
     // 清掉網址上的 code 參數，避免殘留
     window.history.replaceState({}, '', window.location.pathname)
     applyAuthResult(data)
@@ -1301,6 +1306,12 @@ async function initAuth() {
 
 function applyAuthResult(data) {
   _isAuthorized = !!data.authorized
+  const badgeEl = document.getElementById('nav-user-badge')
+  if (badgeEl) {
+    const name = data.name || ''
+    badgeEl.textContent = name ? name.charAt(0) : '我'
+    badgeEl.title = name || ''
+  }
   if (!_isAuthorized) {
     // 沒有權限：隱藏其他三個分頁的導覽按鈕
     document.querySelectorAll('.nav-tab').forEach((btn, idx) => {
