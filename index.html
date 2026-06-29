@@ -544,7 +544,7 @@ async function saveEditProjectTask() {
   } catch(e) { alert('儲存失敗：' + e.message) }
 }
 
-
+function badge(label) {
   label = fieldText(label)
   const map = {
     '已完成': 'green', '進行中': 'blue', '處理中': 'blue', '開發中': 'blue',
