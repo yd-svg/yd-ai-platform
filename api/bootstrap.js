@@ -4,6 +4,7 @@ const APP_TOKEN = process.env.LARK_APP_TOKEN || 'Ush0bCKtAa08h7slpVVjqG10pIg'
 const TABLES = {
   projects: process.env.LARK_TABLE_PROJECTS || 'tblQx7UphBLyz4K7',
   tasks: process.env.LARK_TABLE_TASKS || 'tbl1RelJ3o5lr79D',
+  acceptance: process.env.LARK_TABLE_ACCEPTANCE || 'tblOaBLFAhOy7qXC',
 }
 
 async function getToken() {
@@ -38,11 +39,12 @@ export default async function handler(req, res) {
 
   try {
     const token = await getToken()
-    const [projects, tasks] = await Promise.all([
+    const [projects, tasks, acceptance] = await Promise.all([
       listTable(token, TABLES.projects, 100),
       listTable(token, TABLES.tasks, 500),
+      listTable(token, TABLES.acceptance, 500),
     ])
-    res.status(200).json({ ok: true, ts: Date.now(), projects, tasks })
+    res.status(200).json({ ok: true, ts: Date.now(), projects, tasks, acceptance })
   } catch (e) {
     res.status(500).json({ error: e.message })
   }

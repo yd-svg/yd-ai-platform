@@ -86,6 +86,23 @@
     .proj-save-btn { flex-shrink: 0; width: 38px; height: 38px; border: none; border-radius: 8px; background: #16A34A; color: #fff; font-size: 20px; font-weight: 700; line-height: 38px; cursor: pointer; padding: 0; transition: background .15s; margin-top: 2px; }
     .proj-save-btn:hover { background: #15803D; }
     .proj-save-btn:disabled { opacity: .55; cursor: wait; }
+    .proj-detail-tabs { display: flex; gap: 2px; margin-bottom: 16px; background: #F3F4F6; padding: 3px; border-radius: 8px; width: fit-content; }
+    .proj-detail-tab { padding: 6px 18px; border-radius: 6px; border: none; background: transparent; font-size: 13px; font-weight: 600; cursor: pointer; color: #6B7280; transition: all .15s; }
+    .proj-detail-tab.active { background: #fff; color: #1A1A1A; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+    .accept-list { display: flex; flex-direction: column; gap: 10px; }
+    .accept-row { border: 1px solid #E5E7EB; border-radius: 10px; padding: 14px 16px; background: #fff; }
+    .accept-row.is-pass { border-color: #BBF7D0; background: #F0FDF4; }
+    .accept-row.is-fail { border-color: #FECACA; background: #FEF2F2; }
+    .accept-head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
+    .accept-check { width: 18px; height: 18px; margin-top: 2px; flex-shrink: 0; cursor: pointer; accent-color: #16A34A; }
+    .accept-title { font-size: 14px; font-weight: 600; line-height: 1.4; flex: 1; }
+    .accept-seq { font-size: 12px; color: #9CA3AF; flex-shrink: 0; }
+    .accept-criteria { font-size: 12px; color: #6B7280; line-height: 1.55; margin-bottom: 10px; white-space: pre-wrap; }
+    .accept-meta { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
+    .accept-meta label { font-size: 12px; color: #6B7280; display: flex; align-items: center; gap: 6px; }
+    .accept-meta select, .accept-meta input[type=date], .accept-meta input[type=text] { font-size: 12px; border: 1px solid #E5E7EB; border-radius: 6px; padding: 5px 8px; font-family: inherit; background: #fff; }
+    .accept-meta input[type=text] { min-width: 160px; flex: 1; }
+    .accept-saving { font-size: 11px; color: #9CA3AF; margin-left: auto; }
     .undo-toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1A1A1A; color: #fff; border-radius: 10px; padding: 10px 14px; display: flex; align-items: center; gap: 10px; font-size: 13px; box-shadow: 0 4px 16px rgba(0,0,0,.22); z-index: 200; opacity: 0; pointer-events: none; transition: opacity .2s; white-space: nowrap; }
     .undo-toast.show { opacity: 1; pointer-events: auto; }
     .undo-btn { padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,.35); background: rgba(255,255,255,.12); color: #fff; font-size: 12px; font-weight: 600; cursor: pointer; }
@@ -409,6 +426,7 @@ const CONFIG = {
     tickets:       'tbllYQJY0mPyY0rb',
     projects:      'tblQx7UphBLyz4K7',
     tasks:         'tbl1RelJ3o5lr79D',
+    acceptance:    'tblOaBLFAhOy7qXC',
     announcements: 'tblu0qYQjrrHKDyN',
     roadmap:       'tbl9eXY7wKU12h56',
   }
@@ -495,7 +513,7 @@ async function undoLast() {
       else if (last.table === CONFIG.tables.projects) loadProjects()
       else if (last.table === CONFIG.tables.tasks) {
         _allTasks = await listRecords(CONFIG.tables.tasks, { page_size: 500 })
-        if (_selectedProject) renderTaskPanel(_selectedProject)
+        if (_selectedProject) renderProjectPanel(_selectedProject)
       }
     }
   } catch (e) { alert('復原失敗：' + e.message) }
@@ -762,6 +780,8 @@ async function submitTicket() {
 // ═══════════════════════════════════════════════════
 let _selectedProject = null
 let _allTasks = []
+let _allAcceptances = []
+let _projectDetailTab = 'tasks'
 
 let _projectView = 'list'
 let _projectPage = 0
@@ -784,6 +804,7 @@ function sortProjects(projects) {
 function applyProjectsPayload(payload) {
   _projectsCache = sortProjects(payload.projects || [])
   _allTasks = payload.tasks || []
+  _allAcceptances = payload.acceptance || []
 }
 
 function writePmCache() {
@@ -793,8 +814,19 @@ function writePmCache() {
       ts: Date.now(),
       projects: _projectsCache,
       tasks: _allTasks,
+      acceptance: _allAcceptances,
     }))
   } catch (e) {}
+}
+
+function recordsForProject(records, projectId, projectName, linkField) {
+  return records.filter(r => {
+    const linked = r.fields[linkField]
+    if (!linked) return false
+    if (Array.isArray(linked)) return linked.some(l => l.record_id === projectId || l.text === projectName)
+    if (typeof linked === 'string') return linked === projectName
+    return false
+  })
 }
 
 async function fetchProjectsPayload() {
@@ -825,7 +857,7 @@ function renderProjectsUI() {
     const updated = _projectsCache.find(p => p.record_id === _selectedProject.record_id)
     if (updated) {
       _selectedProject = updated
-      renderTaskPanel(updated)
+      renderProjectPanel(updated)
     }
   }
 }
@@ -1095,7 +1127,7 @@ function selectProject(p) {
   _selectedProject = p
   _projHeaderSaveClick = false
   renderProjectList()
-  renderTaskPanel(p)
+  renderProjectPanel(p)
 }
 
 let _projHeaderSaveClick = false
@@ -1176,25 +1208,217 @@ async function confirmProjectHeaderSave() {
     _taskProjectName = name
     renderProjectList()
     writePmCache()
-    renderTaskPanel(_selectedProject)
+    renderProjectPanel(_selectedProject)
   } catch (e) {
     alert('儲存失敗：' + e.message)
     if (btn) btn.disabled = false
   }
 }
 
-function renderTaskPanel(p) {
+function setProjectDetailTab(tab) {
+  _projectDetailTab = tab === 'acceptance' ? 'acceptance' : 'tasks'
+  if (_selectedProject) renderProjectPanel(_selectedProject)
+}
+
+function tsToDateInput(ts) {
+  if (!ts) return ''
+  const d = new Date(Number(ts))
+  if (isNaN(d.getTime())) return ''
+  return d.toISOString().split('T')[0]
+}
+
+function acceptancesForProject(projectId, projectName) {
+  return recordsForProject(_allAcceptances, projectId, projectName, '所屬專案')
+    .slice()
+    .sort((a, b) => (Number(a.fields['序號']) || 0) - (Number(b.fields['序號']) || 0))
+}
+
+function renderAcceptanceSection(p) {
+  const f = p.fields
+  const items = acceptancesForProject(p.record_id, f['專案名稱'] || '')
+  if (!items.length) return '<div class="empty">這個專案還沒有驗收項目</div>'
+
+  return `<div class="accept-list">${items.map(item => {
+    const af = item.fields
+    const status = fieldText(af['狀態']) || '未驗收'
+    const rowCls = status === '通過' ? ' is-pass' : (status === '不通過' ? ' is-fail' : '')
+    const checked = status === '通過' ? ' checked' : ''
+    const criteria = fieldText(af['驗收標準'])
+    return `
+      <div class="accept-row${rowCls}" data-accept-id="${escAttr(item.record_id)}">
+        <div class="accept-head">
+          <input type="checkbox" class="accept-check" data-accept-check="${escAttr(item.record_id)}"${checked} title="勾選代表通過" />
+          <div class="accept-title">${escHtml(fieldText(af['驗收項目']) || '未命名項目')}</div>
+          ${af['序號'] != null && af['序號'] !== '' ? `<span class="accept-seq">#${escHtml(fieldText(af['序號']))}</span>` : ''}
+        </div>
+        ${criteria ? `<div class="accept-criteria">${escHtml(criteria)}</div>` : ''}
+        <div class="accept-meta">
+          <label>狀態
+            <select data-accept-field="狀態" data-accept-id="${escAttr(item.record_id)}">
+              ${['未驗收', '通過', '不通過'].map(s => `<option value="${s}"${s === status ? ' selected' : ''}>${s}</option>`).join('')}
+            </select>
+          </label>
+          <label>通過日期
+            <input type="date" data-accept-field="通過日期" data-accept-id="${escAttr(item.record_id)}" value="${tsToDateInput(af['通過日期'])}" />
+          </label>
+          <label style="flex:1;min-width:200px;">備註
+            <input type="text" data-accept-field="備註" data-accept-id="${escAttr(item.record_id)}" value="${escAttr(fieldText(af['備註']))}" placeholder="備註..." />
+          </label>
+          <span class="accept-saving" id="accept-save-${escAttr(item.record_id)}"></span>
+        </div>
+      </div>`
+  }).join('')}</div>`
+}
+
+function renderTasksSection(p, tasks, today) {
+  if (!tasks.length) return '<div class="empty">這個專案還沒有任務</div>'
+
+  const groups = {}
+  const order = []
+  tasks.forEach(t => {
+    const stage = fieldText(t.fields['階段']) || '未分類'
+    if (!groups[stage]) { groups[stage] = []; order.push(stage) }
+    groups[stage].push(t)
+  })
+  const subSeqNum = (t) => parseFloat(fieldText(t.fields['子序'])) || 0
+  order.forEach(stage => groups[stage].sort((a, b) => subSeqNum(a) - subSeqNum(b)))
+
+  return order.map(stage => {
+    const items = groups[stage]
+    return `
+      <div style="margin-bottom:24px;">
+        <div style="font-size:15px;font-weight:700;margin-bottom:10px;">${escHtml(stage)}（${items.length} 項）</div>
+        <div class="card" style="padding:0;overflow:hidden;">
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead>
+              <tr style="background:#F9FAFB;border-bottom:1px solid #E5E7EB;">
+                <th style="text-align:left;padding:10px 12px;width:56px;color:#6B7280;font-weight:600;">#</th>
+                <th style="text-align:left;padding:10px 12px;color:#6B7280;font-weight:600;">任務</th>
+                <th style="text-align:left;padding:10px 12px;color:#6B7280;font-weight:600;">產出/完成標準</th>
+                <th style="text-align:left;padding:10px 12px;width:90px;color:#6B7280;font-weight:600;">狀態</th>
+                <th style="text-align:left;padding:10px 12px;width:90px;color:#6B7280;font-weight:600;">負責人</th>
+                <th style="text-align:left;padding:10px 12px;width:80px;color:#6B7280;font-weight:600;">截止</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${items.map(t => {
+                const tf = t.fields
+                const isOverdue = tf['截止日期'] && new Date(tf['截止日期']) < today && tf['任務狀態'] !== '已完成'
+                return `
+                  <tr style="border-bottom:1px solid #F3F4F6;${isOverdue ? 'background:#FEF2F2;' : ''}">
+                    <td style="padding:10px 12px;color:#9CA3AF;vertical-align:top;">${fieldText(tf['子序'])}</td>
+                    <td style="padding:10px 12px;font-weight:500;vertical-align:top;">${fieldText(tf['任務說明'])}</td>
+                    <td style="padding:10px 12px;color:#6B7280;vertical-align:top;">${fieldText(tf['產出項目'])}</td>
+                    <td style="padding:10px 12px;vertical-align:top;">${tf['任務狀態'] ? badge(tf['任務狀態']) : ''}</td>
+                    <td style="padding:10px 12px;color:#6B7280;vertical-align:top;">${fieldText(tf['負責人'])}</td>
+                    <td style="padding:10px 12px;${isOverdue ? 'color:#DC2626;font-weight:500;' : 'color:#9CA3AF;'}vertical-align:top;">${fmtDate(tf['截止日期'])}${isOverdue ? ' 逾期' : ''}</td>
+                  </tr>`
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`
+  }).join('')
+}
+
+let _acceptPanelBound = false
+function bindAcceptancePanelEvents() {
+  const panel = document.getElementById('task-panel')
+  if (!panel || _acceptPanelBound) return
+  _acceptPanelBound = true
+
+  panel.addEventListener('change', function(e) {
+    const check = e.target.closest('[data-accept-check]')
+    if (check) {
+      const id = check.getAttribute('data-accept-check')
+      const row = panel.querySelector('[data-accept-id="' + id + '"]')
+      const select = row && row.querySelector('select[data-accept-field="狀態"]')
+      const dateInput = row && row.querySelector('input[data-accept-field="通過日期"]')
+      if (check.checked) {
+        if (select) select.value = '通過'
+        if (dateInput && !dateInput.value) dateInput.value = new Date().toISOString().split('T')[0]
+        saveAcceptanceItem(id, { 狀態: '通過', 通過日期: dateInput && dateInput.value ? new Date(dateInput.value).getTime() : Date.now() })
+      } else {
+        if (select) select.value = '未驗收'
+        saveAcceptanceItem(id, { 狀態: '未驗收' })
+      }
+      return
+    }
+    const el = e.target.closest('[data-accept-field]')
+    if (!el) return
+    const id = el.getAttribute('data-accept-id')
+    const field = el.getAttribute('data-accept-field')
+    if (!id || !field) return
+    let value = el.value
+    if (field === '通過日期') value = value ? new Date(value).getTime() : null
+    const fields = {}
+    fields[field] = value
+    if (field === '狀態') {
+      const row = panel.querySelector('[data-accept-id="' + id + '"]')
+      const checkEl = row && row.querySelector('[data-accept-check]')
+      if (checkEl) checkEl.checked = value === '通過'
+      if (value === '通過') {
+        const dateInput = row && row.querySelector('input[data-accept-field="通過日期"]')
+        if (dateInput && !dateInput.value) {
+          dateInput.value = new Date().toISOString().split('T')[0]
+          fields['通過日期'] = new Date(dateInput.value).getTime()
+        }
+      }
+    }
+    saveAcceptanceItem(id, fields)
+  })
+
+  panel.addEventListener('blur', function(e) {
+    const el = e.target.closest('[data-accept-field="備註"]')
+    if (!el) return
+    const id = el.getAttribute('data-accept-id')
+    saveAcceptanceItem(id, { 備註: el.value.trim() })
+  }, true)
+}
+
+async function saveAcceptanceItem(recordId, fields) {
+  const item = _allAcceptances.find(a => a.record_id === recordId)
+  if (!item) return
+  const statusEl = document.getElementById('accept-save-' + recordId)
+  if (statusEl) statusEl.textContent = '儲存中…'
+  const payload = {}
+  Object.keys(fields).forEach(k => {
+    if (fields[k] === null || fields[k] === undefined || fields[k] === '') {
+      if (k === '通過日期' || k === '備註') payload[k] = null
+      else payload[k] = fields[k]
+    } else {
+      payload[k] = fields[k]
+    }
+  })
+  try {
+    await updateRecord(CONFIG.tables.acceptance, recordId, payload)
+    Object.assign(item.fields, payload)
+    writePmCache()
+    if (statusEl) statusEl.textContent = '已儲存'
+    setTimeout(() => { if (statusEl) statusEl.textContent = '' }, 1500)
+    if (_selectedProject && payload['狀態']) {
+      const row = document.querySelector('[data-accept-id="' + recordId + '"]')
+      if (row) {
+        row.classList.remove('is-pass', 'is-fail')
+        const st = fieldText(payload['狀態'])
+        if (st === '通過') row.classList.add('is-pass')
+        if (st === '不通過') row.classList.add('is-fail')
+      }
+    }
+  } catch (e) {
+    if (statusEl) statusEl.textContent = '失敗'
+    alert('驗收儲存失敗：' + e.message)
+  }
+}
+
+function renderProjectPanel(p) {
   const f = p.fields
   const projName = f['專案名稱'] || ''
   const projGoal = f['專案目標'] || ''
-  const tasks = _allTasks.filter(t => {
-    const linked = t.fields['所屬專案']
-    if (!linked) return false
-    if (Array.isArray(linked)) return linked.some(l => l.record_id === p.record_id || l.text === f['專案名稱'])
-    if (typeof linked === 'string') return linked === f['專案名稱']
-    return false
-  })
-  const today = new Date(); today.setHours(0,0,0,0)
+  const tasks = recordsForProject(_allTasks, p.record_id, projName, '所屬專案')
+  const acceptCount = acceptancesForProject(p.record_id, projName).length
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const isTasks = _projectDetailTab !== 'acceptance'
 
   document.getElementById('task-panel').innerHTML = `
     <div>
@@ -1226,63 +1450,21 @@ function renderTaskPanel(p) {
               </div>` : ''}
             ${f['風險/卡關'] ? `<div style="margin-top:10px;background:#FEF2F2;color:#DC2626;font-size:12px;padding:8px 12px;border-radius:8px;">⚠ ${escHtml(f['風險/卡關'])}</div>` : ''}
           </div>
-          <button class="btn btn-primary" onclick="openTaskModal('${p.record_id}')">+ 新增任務</button>
+          ${isTasks ? `<button class="btn btn-primary" onclick="openTaskModal('${p.record_id}')">+ 新增任務</button>` : ''}
         </div>
       </div>
 
-      <div>
-        ${!tasks.length ? '<div class="empty">這個專案還沒有任務</div>' : (() => {
-          // 依「階段」分組
-          const groups = {}
-          const order = []
-          tasks.forEach(t => {
-            const stage = fieldText(t.fields['階段']) || '未分類'
-            if (!groups[stage]) { groups[stage] = []; order.push(stage) }
-            groups[stage].push(t)
-          })
-          // 階段排序：依階段文字裡的數字（例如「階段一」→沒有數字就維持原順序）；組內依「子序」數字排序
-          const subSeqNum = (t) => parseFloat(fieldText(t.fields['子序'])) || 0
-          order.forEach(stage => groups[stage].sort((a, b) => subSeqNum(a) - subSeqNum(b)))
+      <div class="proj-detail-tabs">
+        <button type="button" class="proj-detail-tab${isTasks ? ' active' : ''}" onclick="setProjectDetailTab('tasks')">任務${tasks.length ? ' (' + tasks.length + ')' : ''}</button>
+        <button type="button" class="proj-detail-tab${!isTasks ? ' active' : ''}" onclick="setProjectDetailTab('acceptance')">驗收${acceptCount ? ' (' + acceptCount + ')' : ''}</button>
+      </div>
 
-          return order.map(stage => {
-            const items = groups[stage]
-            return `
-              <div style="margin-bottom:24px;">
-                <div style="font-size:15px;font-weight:700;margin-bottom:10px;">${stage}（${items.length} 項）</div>
-                <div class="card" style="padding:0;overflow:hidden;">
-                  <table style="width:100%;border-collapse:collapse;font-size:13px;">
-                    <thead>
-                      <tr style="background:#F9FAFB;border-bottom:1px solid #E5E7EB;">
-                        <th style="text-align:left;padding:10px 12px;width:56px;color:#6B7280;font-weight:600;">#</th>
-                        <th style="text-align:left;padding:10px 12px;color:#6B7280;font-weight:600;">任務</th>
-                        <th style="text-align:left;padding:10px 12px;color:#6B7280;font-weight:600;">產出/完成標準</th>
-                        <th style="text-align:left;padding:10px 12px;width:90px;color:#6B7280;font-weight:600;">狀態</th>
-                        <th style="text-align:left;padding:10px 12px;width:90px;color:#6B7280;font-weight:600;">負責人</th>
-                        <th style="text-align:left;padding:10px 12px;width:80px;color:#6B7280;font-weight:600;">截止</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      ${items.map(t => {
-                        const tf = t.fields
-                        const isOverdue = tf['截止日期'] && new Date(tf['截止日期']) < today && tf['任務狀態'] !== '已完成'
-                        return `
-                          <tr style="border-bottom:1px solid #F3F4F6;${isOverdue ? 'background:#FEF2F2;' : ''}">
-                            <td style="padding:10px 12px;color:#9CA3AF;vertical-align:top;">${fieldText(tf['子序'])}</td>
-                            <td style="padding:10px 12px;font-weight:500;vertical-align:top;">${fieldText(tf['任務說明'])}</td>
-                            <td style="padding:10px 12px;color:#6B7280;vertical-align:top;">${fieldText(tf['產出項目'])}</td>
-                            <td style="padding:10px 12px;vertical-align:top;">${tf['任務狀態'] ? badge(tf['任務狀態']) : ''}</td>
-                            <td style="padding:10px 12px;color:#6B7280;vertical-align:top;">${fieldText(tf['負責人'])}</td>
-                            <td style="padding:10px 12px;${isOverdue ? 'color:#DC2626;font-weight:500;' : 'color:#9CA3AF;'}vertical-align:top;">${fmtDate(tf['截止日期'])}${isOverdue ? ' 逾期' : ''}</td>
-                          </tr>`
-                      }).join('')}
-                    </tbody>
-                  </table>
-                </div>
-              </div>`
-          }).join('')
-        })()}
+      <div id="proj-detail-body">
+        ${isTasks ? renderTasksSection(p, tasks, today) : renderAcceptanceSection(p)}
       </div>
     </div>`
+
+  bindAcceptancePanelEvents()
 }
 
 let _taskProjectId = null
@@ -1492,7 +1674,7 @@ async function submitTask() {
     closeModal('task-modal')
     _allTasks = await listRecords(CONFIG.tables.tasks, { page_size: 500 })
     writePmCache()
-    if (_selectedProject) renderTaskPanel(_selectedProject)
+    if (_selectedProject) renderProjectPanel(_selectedProject)
   } catch (e) {
     errEl.textContent = '新增失敗：' + e.message
     errEl.style.display = 'block'
