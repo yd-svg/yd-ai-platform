@@ -72,13 +72,20 @@
     .error-msg { background: #FEF2F2; color: #DC2626; padding: 8px 12px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; }
     .btn-danger { background: #fff; color: #DC2626; border: 1px solid #FECACA; }
     .btn-danger:hover { background: #FEF2F2; }
-    .project-title-input { font-size: 18px; font-weight: 700; border: 1px solid transparent; background: transparent; padding: 4px 6px; width: 100%; font-family: inherit; color: #1A1A1A; border-radius: 6px; box-sizing: border-box; }
-    .project-title-input:hover { border-color: #E5E7EB; background: #F9FAFB; }
-    .project-title-input:focus { border-color: #9CA3AF; background: #fff; outline: none; }
-    .project-goal-input { font-size: 13px; color: #6B7280; border: 1px solid transparent; background: transparent; padding: 4px 6px; width: 100%; font-family: inherit; border-radius: 6px; resize: vertical; min-height: 44px; box-sizing: border-box; line-height: 1.5; }
-    .project-goal-input:hover { border-color: #E5E7EB; background: #F9FAFB; }
-    .project-goal-input:focus { border-color: #9CA3AF; background: #fff; color: #374151; outline: none; }
-    .project-edit-hint { font-size: 11px; color: #9CA3AF; margin-top: 4px; }
+    .project-title-input { font-size: 18px; font-weight: 700; border: 1px solid #E5E7EB; background: #fff; padding: 6px 8px; width: 100%; font-family: inherit; color: #1A1A1A; border-radius: 6px; box-sizing: border-box; }
+    .project-title-input:focus { border-color: #9CA3AF; outline: none; }
+    .project-goal-input { font-size: 13px; color: #374151; border: 1px solid #E5E7EB; background: #fff; padding: 6px 8px; width: 100%; font-family: inherit; border-radius: 6px; resize: vertical; min-height: 44px; box-sizing: border-box; line-height: 1.5; }
+    .project-goal-input:focus { border-color: #9CA3AF; outline: none; }
+    .proj-header-view { cursor: pointer; border-radius: 8px; padding: 2px 4px; margin: -2px -4px; transition: background .15s; }
+    .proj-header-view:hover { background: #F9FAFB; }
+    .proj-view-title { font-size: 18px; font-weight: 700; margin: 0 0 6px; line-height: 1.4; word-break: break-word; }
+    .proj-view-goal { font-size: 13px; color: #6B7280; margin: 0; line-height: 1.5; word-break: break-word; white-space: pre-wrap; }
+    .proj-view-goal.is-empty { color: #9CA3AF; font-style: italic; }
+    .proj-header-form-row { display: flex; align-items: flex-start; gap: 10px; }
+    .proj-header-fields { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+    .proj-save-btn { flex-shrink: 0; width: 38px; height: 38px; border: none; border-radius: 8px; background: #16A34A; color: #fff; font-size: 20px; font-weight: 700; line-height: 38px; cursor: pointer; padding: 0; transition: background .15s; margin-top: 2px; }
+    .proj-save-btn:hover { background: #15803D; }
+    .proj-save-btn:disabled { opacity: .55; cursor: wait; }
     .undo-toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1A1A1A; color: #fff; border-radius: 10px; padding: 10px 14px; display: flex; align-items: center; gap: 10px; font-size: 13px; box-shadow: 0 4px 16px rgba(0,0,0,.22); z-index: 200; opacity: 0; pointer-events: none; transition: opacity .2s; white-space: nowrap; }
     .undo-toast.show { opacity: 1; pointer-events: auto; }
     .undo-btn { padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,.35); background: rgba(255,255,255,.12); color: #fff; font-size: 12px; font-weight: 600; cursor: pointer; }
@@ -1011,25 +1018,74 @@ function renderGantt(projects) {
 
 function selectProject(p) {
   _selectedProject = p
+  _projHeaderSaveClick = false
   renderProjectList()
   renderTaskPanel(p)
 }
 
-async function saveProjectHeader() {
+let _projHeaderSaveClick = false
+
+function startProjectHeaderEdit() {
+  if (!_selectedProject) return
+  const view = document.getElementById('proj-header-view')
+  const form = document.getElementById('proj-header-form')
+  if (!view || !form) return
+  const f = _selectedProject.fields
+  document.getElementById('proj-edit-name').value = f['專案名稱'] || ''
+  document.getElementById('proj-edit-goal').value = f['專案目標'] || ''
+  view.style.display = 'none'
+  form.style.display = 'block'
+  document.getElementById('proj-edit-name').focus()
+}
+
+function cancelProjectHeaderEdit() {
+  const view = document.getElementById('proj-header-view')
+  const form = document.getElementById('proj-header-form')
+  if (!view || !form || !_selectedProject) return
+  const f = _selectedProject.fields
+  document.getElementById('proj-edit-name').value = f['專案名稱'] || ''
+  document.getElementById('proj-edit-goal').value = f['專案目標'] || ''
+  form.style.display = 'none'
+  view.style.display = 'block'
+}
+
+function onProjectHeaderBlur() {
+  setTimeout(function() {
+    if (_projHeaderSaveClick) {
+      _projHeaderSaveClick = false
+      return
+    }
+    const form = document.getElementById('proj-header-form')
+    if (!form || form.style.display === 'none') return
+    if (form.contains(document.activeElement)) return
+    cancelProjectHeaderEdit()
+  }, 0)
+}
+
+function markProjectHeaderSaveClick() {
+  _projHeaderSaveClick = true
+}
+
+async function confirmProjectHeaderSave() {
   if (!_selectedProject) return
   const nameEl = document.getElementById('proj-edit-name')
   const goalEl = document.getElementById('proj-edit-goal')
+  const btn = document.getElementById('proj-save-btn')
   if (!nameEl || !goalEl) return
   const name = nameEl.value.trim()
   const goal = goalEl.value.trim()
   if (!name) {
     alert('專案名稱不可為空')
-    nameEl.value = _selectedProject.fields['專案名稱'] || ''
+    nameEl.focus()
     return
   }
   const oldName = _selectedProject.fields['專案名稱'] || ''
   const oldGoal = _selectedProject.fields['專案目標'] || ''
-  if (name === oldName && goal === oldGoal) return
+  if (name === oldName && goal === oldGoal) {
+    cancelProjectHeaderEdit()
+    return
+  }
+  if (btn) btn.disabled = true
   try {
     await updateRecord(CONFIG.tables.projects, _selectedProject.record_id, {
       專案名稱: name,
@@ -1044,10 +1100,10 @@ async function saveProjectHeader() {
     }
     _taskProjectName = name
     renderProjectList()
+    renderTaskPanel(_selectedProject)
   } catch (e) {
     alert('儲存失敗：' + e.message)
-    nameEl.value = oldName
-    goalEl.value = oldGoal
+    if (btn) btn.disabled = false
   }
 }
 
@@ -1069,9 +1125,19 @@ function renderTaskPanel(p) {
       <div class="card" style="margin-bottom:16px;">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
           <div style="flex:1;">
-            <input class="project-title-input" id="proj-edit-name" value="${escAttr(projName)}" placeholder="專案名稱" onblur="saveProjectHeader()" />
-            <textarea class="project-goal-input" id="proj-edit-goal" placeholder="專案目標／說明（可直接編輯）" onblur="saveProjectHeader()">${escAttr(projGoal)}</textarea>
-            <div class="project-edit-hint">標題與說明可直接編輯，離開欄位後自動儲存</div>
+            <div id="proj-header-view" class="proj-header-view" onclick="startProjectHeaderEdit()" title="點擊編輯">
+              <h2 class="proj-view-title">${escHtml(projName) || '未命名專案'}</h2>
+              <p class="proj-view-goal${projGoal ? '' : ' is-empty'}">${projGoal ? escHtml(projGoal) : '點擊新增專案說明'}</p>
+            </div>
+            <div id="proj-header-form" style="display:none;">
+              <div class="proj-header-form-row">
+                <div class="proj-header-fields">
+                  <input class="project-title-input" id="proj-edit-name" placeholder="專案名稱" onblur="onProjectHeaderBlur()" />
+                  <textarea class="project-goal-input" id="proj-edit-goal" placeholder="專案目標／說明" onblur="onProjectHeaderBlur()">${escAttr(projGoal)}</textarea>
+                </div>
+                <button type="button" class="proj-save-btn" id="proj-save-btn" title="確認儲存" onmousedown="markProjectHeaderSaveClick()" onclick="confirmProjectHeaderSave()">✓</button>
+              </div>
+            </div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:10px;">
               ${f['目前階段'] ? badge(f['目前階段']) : ''}
               ${f['優先度'] ? badge(f['優先度']) : ''}
