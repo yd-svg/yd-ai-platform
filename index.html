@@ -44,6 +44,18 @@
     .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 50; align-items: center; justify-content: center; padding: 16px; }
     .modal-overlay.open { display: flex; }
     .modal { background: #fff; border-radius: 16px; width: 100%; max-width: 480px; border: 1px solid #E5E7EB; box-shadow: 0 8px 32px rgba(0,0,0,0.12); max-height: 90vh; overflow-y: auto; }
+    .modal-wide { max-width: 960px; }
+    .task-batch-wrap { overflow-x: auto; border: 1px solid #E5E7EB; border-radius: 10px; margin-bottom: 12px; }
+    .task-batch-table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 860px; }
+    .task-batch-table th { text-align: left; padding: 8px 6px; background: #F9FAFB; color: #6B7280; font-weight: 600; border-bottom: 1px solid #E5E7EB; white-space: nowrap; }
+    .task-batch-table td { padding: 6px; border-bottom: 1px solid #F3F4F6; vertical-align: top; }
+    .task-batch-table .input { padding: 6px 8px; font-size: 12px; }
+    .task-batch-table select.input { min-width: 72px; }
+    .task-batch-table .input-date { min-width: 110px; }
+    .task-batch-table .input-subseq { width: 52px; }
+    .btn-row-del { background: none; border: none; color: #9CA3AF; cursor: pointer; font-size: 16px; line-height: 1; padding: 4px; }
+    .btn-row-del:hover { color: #DC2626; }
+    .project-readonly { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 6px; background: #F3F4F6; font-size: 13px; font-weight: 500; color: #374151; }
     .input { width: 100%; border: 1px solid #E5E7EB; border-radius: 8px; padding: 8px 12px; font-size: 14px; font-family: inherit; outline: none; box-sizing: border-box; background: #F9FAFB; }
     .input:focus { border-color: #9CA3AF; background: #fff; }
     select.input { appearance: none; }
@@ -58,6 +70,19 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     .empty { text-align: center; padding: 40px; color: #9CA3AF; font-size: 14px; }
     .error-msg { background: #FEF2F2; color: #DC2626; padding: 8px 12px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; }
+    .btn-danger { background: #fff; color: #DC2626; border: 1px solid #FECACA; }
+    .btn-danger:hover { background: #FEF2F2; }
+    .project-title-input { font-size: 18px; font-weight: 700; border: 1px solid transparent; background: transparent; padding: 4px 6px; width: 100%; font-family: inherit; color: #1A1A1A; border-radius: 6px; box-sizing: border-box; }
+    .project-title-input:hover { border-color: #E5E7EB; background: #F9FAFB; }
+    .project-title-input:focus { border-color: #9CA3AF; background: #fff; outline: none; }
+    .project-goal-input { font-size: 13px; color: #6B7280; border: 1px solid transparent; background: transparent; padding: 4px 6px; width: 100%; font-family: inherit; border-radius: 6px; resize: vertical; min-height: 44px; box-sizing: border-box; line-height: 1.5; }
+    .project-goal-input:hover { border-color: #E5E7EB; background: #F9FAFB; }
+    .project-goal-input:focus { border-color: #9CA3AF; background: #fff; color: #374151; outline: none; }
+    .project-edit-hint { font-size: 11px; color: #9CA3AF; margin-top: 4px; }
+    .undo-toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1A1A1A; color: #fff; border-radius: 10px; padding: 10px 14px; display: flex; align-items: center; gap: 10px; font-size: 13px; box-shadow: 0 4px 16px rgba(0,0,0,.22); z-index: 200; opacity: 0; pointer-events: none; transition: opacity .2s; white-space: nowrap; }
+    .undo-toast.show { opacity: 1; pointer-events: auto; }
+    .undo-btn { padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,.35); background: rgba(255,255,255,.12); color: #fff; font-size: 12px; font-weight: 600; cursor: pointer; }
+    .undo-btn:hover { background: rgba(255,255,255,.22); }
   </style>
 </head>
 <body>
@@ -72,14 +97,14 @@
       <button class="nav-tab" onclick="showPage('projects')">AI專案管理</button>
       <button class="nav-tab" onclick="showPage('results')">AI成果中心</button>
     </div>
-    <div id="nav-user-badge" style="width:32px;height:32px;background:#F3F4F6;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#6B7280;" title="">我</div>
+    <div style="width:32px;height:32px;background:#F3F4F6;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#6B7280;">我</div>
   </div>
 </nav>
 
 <div style="max-width:1200px; margin:0 auto; padding:32px 24px;">
 
 <!-- ═══════════════════════════════════════════════════
-     PAGE 1：Lark工單服務
+     PAGE 1：AI 服務中心
 ═══════════════════════════════════════════════════ -->
 <div id="page-service" class="page active">
   <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:32px;">
@@ -174,7 +199,7 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════
-     PAGE 4：AI成果中心
+     PAGE 4：AI 成果中心
 ═══════════════════════════════════════════════════ -->
 <div id="page-results" class="page">
   <h1 style="font-size:24px;font-weight:700;margin:0 0 32px;">AI成果中心</h1>
@@ -201,6 +226,11 @@
 </div>
 
 </div><!-- end main -->
+
+<div class="undo-toast" id="undo-toast">
+  <span id="undo-toast-msg">已刪除（5 秒內可復原）</span>
+  <button type="button" class="undo-btn" onclick="undoLast()">↩ 復原</button>
+</div>
 
 <!-- ═══════════════════════════════════════════════════
      MODALS
@@ -305,58 +335,58 @@
   </div>
 </div>
 
-<!-- 任務 Modal -->
+<!-- 任務 Modal（欄位對齊 Lark 多維表格，可同階段批次新增） -->
 <div class="modal-overlay" id="task-modal">
-  <div class="modal">
+  <div class="modal modal-wide">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 24px 16px;border-bottom:1px solid #E5E7EB;">
       <div>
         <div style="font-size:16px;font-weight:600;">新增任務</div>
-        <div style="font-size:12px;color:#6B7280;margin-top:2px;" id="task-modal-project-name"></div>
+        <div style="font-size:12px;color:#6B7280;margin-top:4px;">欄位與後台多維表格一致，可一次新增多筆同階段任務</div>
       </div>
       <button onclick="closeModal('task-modal')" style="background:none;border:none;cursor:pointer;font-size:20px;color:#9CA3AF;line-height:1;">✕</button>
     </div>
     <div style="padding:20px 24px;">
       <div id="task-error" class="error-msg" style="display:none;"></div>
-      <div style="margin-bottom:16px;">
-        <label style="display:block;font-size:13px;font-weight:500;margin-bottom:6px;">任務名稱 <span style="color:#DC2626;">*</span></label>
-        <input class="input" id="tk-name" />
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
         <div>
-          <label style="display:block;font-size:13px;font-weight:500;margin-bottom:6px;">負責人</label>
-          <input class="input" id="tk-assignee" />
+          <label style="display:block;font-size:13px;font-weight:500;margin-bottom:6px;">所屬專案</label>
+          <span class="project-readonly" id="task-modal-project-name"></span>
         </div>
         <div>
-          <label style="display:block;font-size:13px;font-weight:500;margin-bottom:6px;">優先度</label>
-          <select class="input" id="tk-priority">
-            <option>高</option><option selected>中</option><option>低</option>
+          <label style="display:block;font-size:13px;font-weight:500;margin-bottom:6px;">階段 <span style="color:#DC2626;">*</span></label>
+          <select class="input" id="tk-stage-select" onchange="onTaskStageChange()">
+            <option value="">— 選擇階段 —</option>
           </select>
+          <input class="input" id="tk-stage-new" placeholder="輸入新階段名稱，例如：階段三 測試與部署" style="display:none;margin-top:8px;" oninput="refreshTaskBatchSubSeq()" />
         </div>
       </div>
-      <div style="margin-bottom:16px;">
-        <label style="display:block;font-size:13px;font-weight:500;margin-bottom:6px;">任務狀態</label>
-        <select class="input" id="tk-status">
-          <option>待開始</option><option>進行中</option><option>卡關</option><option>已完成</option>
-        </select>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div style="font-size:13px;font-weight:600;color:#374151;">任務清單</div>
+        <button type="button" class="btn btn-secondary" onclick="addTaskBatchRow()" style="padding:6px 12px;font-size:12px;">+ 新增一列</button>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
-        <div>
-          <label style="display:block;font-size:13px;font-weight:500;margin-bottom:6px;">開始日期</label>
-          <input class="input" type="date" id="tk-start" />
-        </div>
-        <div>
-          <label style="display:block;font-size:13px;font-weight:500;margin-bottom:6px;">截止日期</label>
-          <input class="input" type="date" id="tk-due" />
-        </div>
-      </div>
-      <div>
-        <label style="display:block;font-size:13px;font-weight:500;margin-bottom:6px;">任務說明</label>
-        <textarea class="input" id="tk-note" rows="3"></textarea>
+      <div class="task-batch-wrap">
+        <table class="task-batch-table">
+          <thead>
+            <tr>
+              <th>子序</th>
+              <th>任務說明 <span style="color:#DC2626;">*</span></th>
+              <th>產出項目</th>
+              <th>負責人</th>
+              <th>任務狀態</th>
+              <th>開始日期</th>
+              <th>截止日期</th>
+              <th>完成日期</th>
+              <th>優先度</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="task-batch-rows"></tbody>
+        </table>
       </div>
     </div>
     <div style="padding:0 24px 24px;display:flex;gap:10px;justify-content:flex-end;">
       <button class="btn btn-secondary" onclick="closeModal('task-modal')">取消</button>
-      <button class="btn btn-primary" onclick="submitTask()">新增任務</button>
+      <button class="btn btn-primary" id="task-submit-btn" onclick="submitTask()">新增任務</button>
     </div>
   </div>
 </div>
@@ -424,6 +454,50 @@ async function updateRecord(tbl, id, fields) {
   return larkFetch(tableUrl(tbl) + '/' + id, { method: 'PUT', body: JSON.stringify({ fields }) })
 }
 
+async function deleteRecord(tbl, id) {
+  return larkFetch(tableUrl(tbl) + '/' + id, { method: 'DELETE' })
+}
+
+const undoStack = []
+let undoToastTimer = null
+
+function showUndoToast(msg) {
+  const toast = document.getElementById('undo-toast')
+  const msgEl = document.getElementById('undo-toast-msg')
+  if (!toast || !msgEl) return
+  msgEl.textContent = msg
+  toast.classList.add('show')
+  if (undoToastTimer) clearTimeout(undoToastTimer)
+  undoToastTimer = setTimeout(() => toast.classList.remove('show'), 5000)
+}
+
+function hideUndoToast() {
+  const toast = document.getElementById('undo-toast')
+  if (toast) toast.classList.remove('show')
+  if (undoToastTimer) clearTimeout(undoToastTimer)
+}
+
+async function undoLast() {
+  const last = undoStack.pop()
+  if (!last) return
+  hideUndoToast()
+  try {
+    if (last.type === 'delete') {
+      await createRecord(last.table, last.data.fields)
+      if (last.table === CONFIG.tables.tickets) loadTickets()
+      else if (last.table === CONFIG.tables.projects) loadProjects()
+      else if (last.table === CONFIG.tables.tasks) {
+        _allTasks = await listRecords(CONFIG.tables.tasks, { page_size: 500 })
+        if (_selectedProject) renderTaskPanel(_selectedProject)
+      }
+    }
+  } catch (e) { alert('復原失敗：' + e.message) }
+}
+
+function escAttr(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
+}
+
 // ═══════════════════════════════════════════════════
 // 頁面切換
 // ═══════════════════════════════════════════════════
@@ -460,90 +534,6 @@ function fieldText(v) {
   return String(v)
 }
 
-// ═══════════════════════════════════════════════════
-// 專案任務編輯彈窗（列表 + 甘特圖共用）
-// ═══════════════════════════════════════════════════
-let _editProjTaskId = null
-const PROJ_TASK_STATUSES = ['待處理', '進行中', '處理中', '已完成', '卡關', '暫停']
-
-function openEditProjectTask(taskId) {
-  const t = _allTasks.find(x => x.record_id === taskId)
-  if (!t) return
-  _editProjTaskId = taskId
-  const f = t.fields
-  const curStatus = fieldText(f['任務狀態'])
-  const toDateInput = (ts) => ts ? new Date(Number(ts)).toISOString().split('T')[0] : ''
-  const html = `
-    <div id="edit-ptask-overlay" onclick="if(event.target===this)closeEditProjectTask()" style="position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:60;display:flex;align-items:center;justify-content:center;padding:16px;">
-      <div style="background:#fff;border-radius:16px;width:100%;max-width:420px;border:1px solid #E5E7EB;box-shadow:0 8px 32px rgba(0,0,0,0.12);max-height:90vh;overflow-y:auto;">
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #E5E7EB;">
-          <div style="font-size:15px;font-weight:600;">編輯任務</div>
-          <button onclick="closeEditProjectTask()" style="background:none;border:none;cursor:pointer;font-size:18px;color:#9CA3AF;">✕</button>
-        </div>
-        <div style="padding:16px 20px;display:grid;gap:12px;">
-          <div>
-            <label style="font-size:13px;font-weight:500;display:block;margin-bottom:4px;">任務說明</label>
-            <input class="input" id="ptask-name" value="${(fieldText(f['任務說明'])||'').replace(/"/g,'&quot;')}" />
-          </div>
-          <div>
-            <label style="font-size:13px;font-weight:500;display:block;margin-bottom:4px;">產出/完成標準</label>
-            <textarea class="input" id="ptask-output" rows="2">${fieldText(f['產出項目'])||''}</textarea>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-            <div>
-              <label style="font-size:13px;font-weight:500;display:block;margin-bottom:4px;">開始日期</label>
-              <input class="input" type="date" id="ptask-start" value="${toDateInput(f['開始日期'])}" />
-            </div>
-            <div>
-              <label style="font-size:13px;font-weight:500;display:block;margin-bottom:4px;">截止日期</label>
-              <input class="input" type="date" id="ptask-due" value="${toDateInput(f['截止日期'])}" />
-            </div>
-          </div>
-          <div>
-            <label style="font-size:13px;font-weight:500;display:block;margin-bottom:4px;">狀態</label>
-            <select class="input" id="ptask-status">
-              ${PROJ_TASK_STATUSES.map(s => `<option${s===curStatus?' selected':''}>${s}</option>`).join('')}
-            </select>
-          </div>
-          <div>
-            <label style="font-size:13px;font-weight:500;display:block;margin-bottom:4px;">負責人</label>
-            <input class="input" id="ptask-owner" value="${(fieldText(f['負責人'])||'').replace(/"/g,'&quot;')}" placeholder="（人員欄位由 Lark 指派，此處僅顯示）" disabled />
-          </div>
-        </div>
-        <div style="padding:0 20px 20px;display:flex;gap:8px;justify-content:flex-end;">
-          <button class="btn btn-secondary" onclick="closeEditProjectTask()">取消</button>
-          <button class="btn btn-primary" onclick="saveEditProjectTask()">儲存</button>
-        </div>
-      </div>
-    </div>`
-  document.body.insertAdjacentHTML('beforeend', html)
-}
-
-function closeEditProjectTask() {
-  document.getElementById('edit-ptask-overlay')?.remove()
-  _editProjTaskId = null
-}
-
-async function saveEditProjectTask() {
-  const fields = {
-    任務說明: document.getElementById('ptask-name').value.trim(),
-    產出項目: document.getElementById('ptask-output').value.trim(),
-    任務狀態: document.getElementById('ptask-status').value,
-  }
-  const start = document.getElementById('ptask-start').value
-  const due = document.getElementById('ptask-due').value
-  if (start) fields['開始日期'] = new Date(start).getTime()
-  if (due) fields['截止日期'] = new Date(due).getTime()
-  try {
-    await updateRecord(CONFIG.tables.tasks, _editProjTaskId, fields)
-    closeEditProjectTask()
-    // 重新抓資料並刷新目前畫面（列表 or 甘特圖）
-    _allTasks = await listRecords(CONFIG.tables.tasks, { page_size: 500 })
-    if (_selectedProject) renderTaskPanel(_selectedProject)
-    if (_projectView === 'gantt') renderGantt(_projectsCache)
-  } catch(e) { alert('儲存失敗：' + e.message) }
-}
-
 function badge(label) {
   label = fieldText(label)
   const map = {
@@ -561,7 +551,7 @@ function fmtDate(ts) {
 }
 
 // ═══════════════════════════════════════════════════
-// PAGE 1：Lark工單服務
+// PAGE 1：AI 服務中心
 // ═══════════════════════════════════════════════════
 async function loadService() {
   try {
@@ -593,12 +583,14 @@ async function loadService() {
 // PAGE 2：工單管理
 // ═══════════════════════════════════════════════════
 const TICKET_STATUSES = ['待處理', '處理中', '等待確認', '已完成']
+let _ticketsCache = []
 
 async function loadTickets() {
   const el = document.getElementById('tickets-kanban')
   el.innerHTML = '<div class="spinner"></div>'
   try {
     const tickets = await listRecords(CONFIG.tables.tickets, { page_size: 200 })
+    _ticketsCache = tickets
     document.getElementById('tickets-count').textContent = `共 ${tickets.length} 張工單`
 
     el.innerHTML = TICKET_STATUSES.map(status => {
@@ -631,15 +623,22 @@ function ticketCard(t) {
           ${f['優先度'] ? badge(f['優先度']) : ''}
           ${f['工單性質'] ? badge(f['工單性質']) : ''}
         </div>
-        <button onclick="openEditTicket('${t.record_id}','${fieldText(f['狀態']).replace(/'/g,"\\'")}','${fieldText(f['優先度']).replace(/'/g,"\\'")}','${fieldText(f['工單性質']).replace(/'/g,"\\'")}','${(f['截止日期']||'')}')" style="font-size:12px;color:#6B7280;background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;">編輯</button>
+        <button onclick="openEditTicket('${t.record_id}')" style="font-size:12px;color:#6B7280;background:none;border:none;cursor:pointer;text-decoration:underline;padding:0;">編輯</button>
       </div>
     </div>`
 }
 
 // 編輯工單 inline
 let _editTicketId = null
-function openEditTicket(id, status, priority, nature, dueDate) {
+function openEditTicket(id) {
+  const t = _ticketsCache.find(x => x.record_id === id)
+  if (!t) return
   _editTicketId = id
+  const f = t.fields
+  const status = fieldText(f['狀態'])
+  const priority = fieldText(f['優先度'])
+  const nature = fieldText(f['工單性質'])
+  const dueDate = f['截止日期']
   const html = `
     <div id="edit-ticket-overlay" onclick="if(event.target===this)closeEditTicket()" style="position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:50;display:flex;align-items:center;justify-content:center;padding:16px;">
       <div style="background:#fff;border-radius:16px;width:100%;max-width:380px;border:1px solid #E5E7EB;box-shadow:0 8px 32px rgba(0,0,0,0.12);">
@@ -672,9 +671,12 @@ function openEditTicket(id, status, priority, nature, dueDate) {
             <input class="input" type="date" id="edit-due" value="${dueDate ? new Date(Number(dueDate)).toISOString().split('T')[0] : ''}" />
           </div>
         </div>
-        <div style="padding:0 20px 20px;display:flex;gap:8px;justify-content:flex-end;">
-          <button class="btn btn-secondary" onclick="closeEditTicket()">取消</button>
-          <button class="btn btn-primary" onclick="saveEditTicket()">儲存</button>
+        <div style="padding:0 20px 20px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          <button class="btn btn-danger" onclick="deleteEditTicket()">刪除</button>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-secondary" onclick="closeEditTicket()">取消</button>
+            <button class="btn btn-primary" onclick="saveEditTicket()">儲存</button>
+          </div>
         </div>
       </div>
     </div>`
@@ -698,6 +700,22 @@ async function saveEditTicket() {
     closeEditTicket()
     loadTickets()
   } catch(e) { alert('儲存失敗：' + e.message) }
+}
+
+async function deleteEditTicket() {
+  const t = _ticketsCache.find(x => x.record_id === _editTicketId)
+  if (!t) return
+  const title = fieldText(t.fields['任務名稱']) || '工單'
+  if (!confirm('確定要刪除「' + title + '」嗎？\n刪除後 5 秒內可點「復原」還原。')) return
+  const saved = JSON.parse(JSON.stringify(t.fields))
+  const id = _editTicketId
+  closeEditTicket()
+  try {
+    await deleteRecord(CONFIG.tables.tickets, id)
+    undoStack.push({ type: 'delete', table: CONFIG.tables.tickets, data: { fields: saved } })
+    showUndoToast('工單「' + title + '」已刪除（5 秒內可復原）')
+    loadTickets()
+  } catch (e) { alert('刪除失敗：' + e.message) }
 }
 
 // 提交新工單
@@ -919,47 +937,25 @@ function renderGantt(projects) {
     const behind = progressPct < elapsedPct - 10
     const cardId = 'g2card' + blockIdx
 
-    // 依「階段」分組：左邊顯示階段大項，右邊該階段內每筆任務各自一條長條（同一階段內堆疊顯示）
-    const groups = {}
-    const order = []
-    tasks.forEach(t => {
-      const stage = fieldText(t.fields['階段']) || '未分類'
-      if (!groups[stage]) { groups[stage] = []; order.push(stage) }
-      groups[stage].push(t)
-    })
-    order.forEach(stage => groups[stage].sort((a, b) => (parseFloat(fieldText(a.fields['子序']))||0) - (parseFloat(fieldText(b.fields['子序']))||0)))
+    const leftRows = tasks.map(t => `
+      <div style="height:40px;padding:5px 10px;border-bottom:1px solid #F3F4F6;display:flex;flex-direction:column;justify-content:center;">
+        <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${fieldText(t.fields['任務說明'])}</div>
+        <div style="font-size:10px;color:#9CA3AF;margin-top:1px;">${fmtDate(t.fields['開始日期'])}–${fmtDate(t.fields['截止日期'])}</div>
+      </div>`).join('')
 
-    const rowH = 26 // 每筆任務長條的高度
-    const leftRows = order.map(stage => {
-      const items = groups[stage]
-      const groupHeight = items.length * rowH
-      return `
-      <div style="height:${groupHeight}px;padding:6px 10px;border-bottom:1px solid #F3F4F6;display:flex;flex-direction:column;justify-content:center;background:#FAFAF9;">
-        <div style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${stage}</div>
-        <div style="font-size:10px;color:#9CA3AF;margin-top:1px;">${items.length} 項任務</div>
+    const barRows = tasks.map(t => {
+      const tf = t.fields
+      const s = new Date(tf['開始日期']).getTime()
+      const e = new Date(tf['截止日期']).getTime()
+      const bx = g2Dif(vs, new Date(s)) * CW
+      const bw = Math.max((g2Dif(new Date(s), new Date(e)) + 1) * CW - 2, 4)
+      const isOverdue = e < todayMs && fieldText(tf['任務狀態']) !== '已完成'
+      const color = isOverdue ? '#EF4444' : (colors[fieldText(tf['任務狀態'])] || '#9CA3AF')
+      const visible = bx + bw >= 0 && bx <= tw
+      return `<div style="height:40px;border-bottom:1px solid #F3F4F6;position:relative;">
+        ${visible ? `<div title="${fieldText(tf['任務說明'])}：${fmtDate(tf['開始日期'])} ～ ${fmtDate(tf['截止日期'])}${isOverdue?'（逾期）':''}"
+             style="position:absolute;left:${bx}px;width:${bw}px;top:50%;transform:translateY(-50%);height:20px;background:${color};border-radius:5px;"></div>` : ''}
       </div>`
-    }).join('')
-
-    const barRows = order.map(stage => {
-      const items = groups[stage]
-      const groupHeight = items.length * rowH
-      const bars = items.map((t, i) => {
-        const tf = t.fields
-        const s = new Date(tf['開始日期']).getTime()
-        const e = new Date(tf['截止日期']).getTime()
-        const bx = g2Dif(vs, new Date(s)) * CW
-        const bw = Math.max((g2Dif(new Date(s), new Date(e)) + 1) * CW - 2, 4)
-        const isOverdue = e < todayMs && fieldText(tf['任務狀態']) !== '已完成'
-        const color = isOverdue ? '#EF4444' : (colors[fieldText(tf['任務狀態'])] || '#9CA3AF')
-        const visible = bx + bw >= 0 && bx <= tw
-        const top = i * rowH + 2
-        if (!visible) return ''
-        return `<div onclick="openEditProjectTask('${t.record_id}')" title="${fieldText(tf['任務說明'])}：${fmtDate(tf['開始日期'])} ～ ${fmtDate(tf['截止日期'])}${isOverdue?'（逾期）':''}（點擊編輯）"
-             style="position:absolute;left:${bx}px;width:${bw}px;top:${top}px;height:${rowH-6}px;background:${color};border-radius:5px;cursor:pointer;display:flex;align-items:center;padding:0 6px;overflow:hidden;">
-             <span style="font-size:9px;color:#fff;white-space:nowrap;">${fieldText(tf['任務說明'])}</span>
-           </div>`
-      }).join('')
-      return `<div style="height:${groupHeight}px;border-bottom:1px solid #F3F4F6;position:relative;">${bars}</div>`
     }).join('')
 
     return `
@@ -1019,8 +1015,46 @@ function selectProject(p) {
   renderTaskPanel(p)
 }
 
+async function saveProjectHeader() {
+  if (!_selectedProject) return
+  const nameEl = document.getElementById('proj-edit-name')
+  const goalEl = document.getElementById('proj-edit-goal')
+  if (!nameEl || !goalEl) return
+  const name = nameEl.value.trim()
+  const goal = goalEl.value.trim()
+  if (!name) {
+    alert('專案名稱不可為空')
+    nameEl.value = _selectedProject.fields['專案名稱'] || ''
+    return
+  }
+  const oldName = _selectedProject.fields['專案名稱'] || ''
+  const oldGoal = _selectedProject.fields['專案目標'] || ''
+  if (name === oldName && goal === oldGoal) return
+  try {
+    await updateRecord(CONFIG.tables.projects, _selectedProject.record_id, {
+      專案名稱: name,
+      專案目標: goal,
+    })
+    _selectedProject.fields['專案名稱'] = name
+    _selectedProject.fields['專案目標'] = goal
+    const idx = _projectsCache.findIndex(p => p.record_id === _selectedProject.record_id)
+    if (idx >= 0) {
+      _projectsCache[idx].fields['專案名稱'] = name
+      _projectsCache[idx].fields['專案目標'] = goal
+    }
+    _taskProjectName = name
+    renderProjectList()
+  } catch (e) {
+    alert('儲存失敗：' + e.message)
+    nameEl.value = oldName
+    goalEl.value = oldGoal
+  }
+}
+
 function renderTaskPanel(p) {
   const f = p.fields
+  const projName = f['專案名稱'] || ''
+  const projGoal = f['專案目標'] || ''
   const tasks = _allTasks.filter(t => {
     const linked = t.fields['所屬專案']
     if (!linked) return false
@@ -1035,9 +1069,10 @@ function renderTaskPanel(p) {
       <div class="card" style="margin-bottom:16px;">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
           <div style="flex:1;">
-            <h2 style="font-size:18px;font-weight:700;margin:0 0 6px;">${f['專案名稱'] || ''}</h2>
-            ${f['專案目標'] ? `<p style="font-size:13px;color:#6B7280;margin:0 0 10px;">${f['專案目標']}</p>` : ''}
-            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+            <input class="project-title-input" id="proj-edit-name" value="${escAttr(projName)}" placeholder="專案名稱" onblur="saveProjectHeader()" />
+            <textarea class="project-goal-input" id="proj-edit-goal" placeholder="專案目標／說明（可直接編輯）" onblur="saveProjectHeader()">${escAttr(projGoal)}</textarea>
+            <div class="project-edit-hint">標題與說明可直接編輯，離開欄位後自動儲存</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:10px;">
               ${f['目前階段'] ? badge(f['目前階段']) : ''}
               ${f['優先度'] ? badge(f['優先度']) : ''}
               ${f['需求來源'] ? `<span style="font-size:12px;color:#9CA3AF;">來源：${fieldText(f['需求來源'])}</span>` : ''}
@@ -1049,7 +1084,7 @@ function renderTaskPanel(p) {
               </div>` : ''}
             ${f['風險/卡關'] ? `<div style="margin-top:10px;background:#FEF2F2;color:#DC2626;font-size:12px;padding:8px 12px;border-radius:8px;">⚠ ${f['風險/卡關']}</div>` : ''}
           </div>
-          <button class="btn btn-primary" onclick="openTaskModal('${p.record_id}','${(f['專案名稱']||'').replace(/'/g,"\\'")}')">+ 新增任務</button>
+          <button class="btn btn-primary" onclick="openTaskModal('${p.record_id}')">+ 新增任務</button>
         </div>
       </div>
 
@@ -1089,7 +1124,7 @@ function renderTaskPanel(p) {
                         const tf = t.fields
                         const isOverdue = tf['截止日期'] && new Date(tf['截止日期']) < today && tf['任務狀態'] !== '已完成'
                         return `
-                          <tr onclick="openEditProjectTask('${t.record_id}')" style="cursor:pointer;border-bottom:1px solid #F3F4F6;${isOverdue ? 'background:#FEF2F2;' : ''}" onmouseover="this.style.background='#F9FAFB'" onmouseout="this.style.background='${isOverdue ? '#FEF2F2' : ''}'">
+                          <tr style="border-bottom:1px solid #F3F4F6;${isOverdue ? 'background:#FEF2F2;' : ''}">
                             <td style="padding:10px 12px;color:#9CA3AF;vertical-align:top;">${fieldText(tf['子序'])}</td>
                             <td style="padding:10px 12px;font-weight:500;vertical-align:top;">${fieldText(tf['任務說明'])}</td>
                             <td style="padding:10px 12px;color:#6B7280;vertical-align:top;">${fieldText(tf['產出項目'])}</td>
@@ -1108,13 +1143,221 @@ function renderTaskPanel(p) {
     </div>`
 }
 
+let _taskProjectId = null
+let _taskProjectName = ''
+
+function tasksForProject(projectId, projectName) {
+  return _allTasks.filter(t => {
+    const linked = t.fields['所屬專案']
+    if (!linked) return false
+    if (Array.isArray(linked)) return linked.some(l => l.record_id === projectId || l.text === projectName)
+    if (typeof linked === 'string') return linked === projectName
+    return false
+  })
+}
+
+function stagesForProject(projectId, projectName) {
+  const stages = []
+  const seen = {}
+  tasksForProject(projectId, projectName).forEach(t => {
+    const stage = fieldText(t.fields['階段']).trim()
+    if (stage && !seen[stage]) { seen[stage] = true; stages.push(stage) }
+  })
+  return stages
+}
+
+function stageNumFromName(stage) {
+  const m = String(stage || '').match(/階段([一二三四五六七八九十百\d]+)/)
+  if (!m) return null
+  const cnMap = { 一:1, 二:2, 三:3, 四:4, 五:5, 六:6, 七:7, 八:8, 九:9, 十:10 }
+  const token = m[1]
+  if (/^\d+$/.test(token)) return parseInt(token, 10)
+  return cnMap[token] || null
+}
+
+function nextSubSeqForStage(projectId, projectName, stage) {
+  const items = tasksForProject(projectId, projectName).filter(t => fieldText(t.fields['階段']) === stage)
+  let max = 0
+  items.forEach(t => {
+    const n = parseFloat(fieldText(t.fields['子序']))
+    if (!isNaN(n) && n > max) max = n
+  })
+  if (max > 0) {
+    const parts = String(max).split('.')
+    if (parts.length === 2) return parts[0] + '.' + (parseInt(parts[1], 10) + 1)
+    return String(Math.round((max + 0.1) * 10) / 10)
+  }
+  const stageNum = stageNumFromName(stage)
+  if (stageNum != null) return stageNum + '.1'
+  return '1.1'
+}
+
+function getResolvedTaskStage() {
+  const sel = document.getElementById('tk-stage-select').value
+  if (sel === '__new__') return document.getElementById('tk-stage-new').value.trim()
+  return sel.trim()
+}
+
+function onTaskStageChange() {
+  const sel = document.getElementById('tk-stage-select').value
+  const newEl = document.getElementById('tk-stage-new')
+  newEl.style.display = sel === '__new__' ? 'block' : 'none'
+  if (sel && sel !== '__new__') refreshTaskBatchSubSeq()
+}
+
+function taskStatusOptions(selected) {
+  const opts = ['待開始', '進行中', '卡關', '已完成']
+  return opts.map(o => `<option${o === selected ? ' selected' : ''}>${o}</option>`).join('')
+}
+
+function taskPriorityOptions(selected) {
+  const opts = ['高', '中', '低']
+  return opts.map(o => `<option${o === selected ? ' selected' : ''}>${o}</option>`).join('')
+}
+
+function addTaskBatchRow(prefill) {
+  prefill = prefill || {}
+  const stage = getResolvedTaskStage()
+  if (!prefill.subseq && stage && _taskProjectId) {
+    const existing = Array.from(document.querySelectorAll('#task-batch-rows [data-f="子序"]'))
+      .map(el => parseFloat(el.value)).filter(n => !isNaN(n))
+    if (existing.length) {
+      const max = Math.max(...existing)
+      const parts = String(max).split('.')
+      prefill.subseq = parts.length === 2 ? parts[0] + '.' + (parseInt(parts[1], 10) + 1) : String(max + 0.1)
+    } else {
+      prefill.subseq = nextSubSeqForStage(_taskProjectId, _taskProjectName, stage)
+    }
+  }
+  const tbody = document.getElementById('task-batch-rows')
+  const tr = document.createElement('tr')
+  tr.innerHTML = `
+    <td><input class="input input-subseq" data-f="子序" value="${prefill.subseq || ''}" placeholder="1.1" /></td>
+    <td><input class="input" data-f="任務說明" value="${prefill.desc || ''}" placeholder="任務說明" /></td>
+    <td><input class="input" data-f="產出項目" value="${prefill.output || ''}" placeholder="產出/完成標準" /></td>
+    <td><input class="input" data-f="負責人" value="${prefill.assignee || ''}" placeholder="負責人" /></td>
+    <td><select class="input" data-f="任務狀態">${taskStatusOptions(prefill.status || '待開始')}</select></td>
+    <td><input class="input input-date" type="date" data-f="開始日期" value="${prefill.start || ''}" /></td>
+    <td><input class="input input-date" type="date" data-f="截止日期" value="${prefill.due || ''}" /></td>
+    <td><input class="input input-date" type="date" data-f="完成日期" value="${prefill.done || ''}" /></td>
+    <td><select class="input" data-f="優先度">${taskPriorityOptions(prefill.priority || '中')}</select></td>
+    <td><button type="button" class="btn-row-del" onclick="removeTaskBatchRow(this)" title="移除此列">✕</button></td>`
+  tbody.appendChild(tr)
+}
+
+function removeTaskBatchRow(btn) {
+  const tbody = document.getElementById('task-batch-rows')
+  if (tbody.children.length <= 1) return
+  btn.closest('tr').remove()
+}
+
+function refreshTaskBatchSubSeq() {
+  const stage = getResolvedTaskStage()
+  if (!stage || !_taskProjectId) return
+  let seq = nextSubSeqForStage(_taskProjectId, _taskProjectName, stage)
+  document.querySelectorAll('#task-batch-rows tr').forEach(tr => {
+    const input = tr.querySelector('[data-f="子序"]')
+    if (input && !input.value.trim()) {
+      input.value = seq
+      const parts = String(seq).split('.')
+      if (parts.length === 2) seq = parts[0] + '.' + (parseInt(parts[1], 10) + 1)
+    }
+  })
+}
+
+function resetTaskForm(projectId, projectName) {
+  document.getElementById('task-error').style.display = 'none'
+  document.getElementById('task-modal-project-name').textContent = projectName
+  const stageSel = document.getElementById('tk-stage-select')
+  const stages = stagesForProject(projectId, projectName)
+  stageSel.innerHTML = '<option value="">— 選擇階段 —</option>'
+    + stages.map(s => `<option value="${s.replace(/"/g, '&quot;')}">${s}</option>`).join('')
+    + '<option value="__new__">+ 新增階段</option>'
+  document.getElementById('tk-stage-new').value = ''
+  document.getElementById('tk-stage-new').style.display = 'none'
+  stageSel.value = stages.length === 1 ? stages[0] : ''
+  const tbody = document.getElementById('task-batch-rows')
+  tbody.innerHTML = ''
+  addTaskBatchRow()
+  if (stageSel.value) refreshTaskBatchSubSeq()
+}
+
 function openTaskModal(projectId, projectName) {
   _taskProjectId = projectId
-  document.getElementById('task-modal-project-name').textContent = projectName
+  _taskProjectName = projectName || (_selectedProject && _selectedProject.fields['專案名稱']) || ''
+  resetTaskForm(projectId, _taskProjectName)
   openModal('task-modal')
 }
 
-let _taskProjectId = null
+function readTaskBatchRows() {
+  const rows = []
+  document.querySelectorAll('#task-batch-rows tr').forEach(tr => {
+    const get = (f) => {
+      const el = tr.querySelector('[data-f="' + f + '"]')
+      return el ? el.value.trim() : ''
+    }
+    rows.push({
+      子序: get('子序'),
+      任務說明: get('任務說明'),
+      產出項目: get('產出項目'),
+      負責人: get('負責人'),
+      任務狀態: get('任務狀態') || '待開始',
+      開始日期: get('開始日期'),
+      截止日期: get('截止日期'),
+      完成日期: get('完成日期'),
+      優先度: get('優先度') || '中',
+    })
+  })
+  return rows.filter(r => r['任務說明'])
+}
+
+async function submitTask() {
+  const errEl = document.getElementById('task-error')
+  const btn = document.getElementById('task-submit-btn')
+  const stage = getResolvedTaskStage()
+  if (!stage) {
+    errEl.textContent = '請選擇或輸入階段'
+    errEl.style.display = 'block'
+    return
+  }
+  const rows = readTaskBatchRows()
+  if (!rows.length) {
+    errEl.textContent = '請至少填寫一筆任務說明'
+    errEl.style.display = 'block'
+    return
+  }
+  errEl.style.display = 'none'
+  btn.disabled = true
+  btn.textContent = '新增中…'
+  try {
+    for (const row of rows) {
+      const fields = {
+        階段: stage,
+        所屬專案: [{ record_id: _taskProjectId }],
+        子序: row['子序'] || undefined,
+        任務說明: row['任務說明'],
+        產出項目: row['產出項目'] || undefined,
+        負責人: row['負責人'] || undefined,
+        任務狀態: row['任務狀態'],
+        優先度: row['優先度'],
+        開始日期: row['開始日期'] ? new Date(row['開始日期']).getTime() : undefined,
+        截止日期: row['截止日期'] ? new Date(row['截止日期']).getTime() : undefined,
+        完成日期: row['完成日期'] ? new Date(row['完成日期']).getTime() : undefined,
+      }
+      Object.keys(fields).forEach(k => { if (fields[k] === undefined) delete fields[k] })
+      await createRecord(CONFIG.tables.tasks, fields)
+    }
+    closeModal('task-modal')
+    _allTasks = await listRecords(CONFIG.tables.tasks, { page_size: 500 })
+    if (_selectedProject) renderTaskPanel(_selectedProject)
+  } catch (e) {
+    errEl.textContent = '新增失敗：' + e.message
+    errEl.style.display = 'block'
+  } finally {
+    btn.disabled = false
+    btn.textContent = '新增任務'
+  }
+}
 
 async function submitProject() {
   const name = document.getElementById('p-name').value.trim()
@@ -1140,36 +1383,8 @@ async function submitProject() {
     loadProjects()
   } catch(e) { errEl.textContent='建立失敗：'+e.message; errEl.style.display='block' }
 }
-
-async function submitTask() {
-  const name = document.getElementById('tk-name').value.trim()
-  const errEl = document.getElementById('task-error')
-  if (!name) { errEl.textContent='請填寫任務名稱'; errEl.style.display='block'; return }
-  errEl.style.display='none'
-  try {
-    const start = document.getElementById('tk-start').value
-    const due = document.getElementById('tk-due').value
-    await createRecord(CONFIG.tables.tasks, {
-      任務名稱: name,
-      所屬專案: [{ record_id: _taskProjectId }],
-      負責人: document.getElementById('tk-assignee').value,
-      任務狀態: document.getElementById('tk-status').value,
-      優先度: document.getElementById('tk-priority').value,
-      開始日期: start ? new Date(start).getTime() : undefined,
-      截止日期: due ? new Date(due).getTime() : undefined,
-      任務說明: document.getElementById('tk-note').value,
-    })
-    closeModal('task-modal')
-    document.getElementById('tk-name').value=''
-    document.getElementById('tk-assignee').value=''
-    document.getElementById('tk-note').value=''
-    _allTasks = await listRecords(CONFIG.tables.tasks, { page_size: 500 })
-    if (_selectedProject) renderTaskPanel(_selectedProject)
-  } catch(e) { errEl.textContent='新增失敗：'+e.message; errEl.style.display='block' }
-}
-
 // ═══════════════════════════════════════════════════
-// PAGE 4：AI成果中心
+// PAGE 4：AI 成果中心
 // ═══════════════════════════════════════════════════
 async function loadResults() {
   try {
@@ -1252,17 +1467,11 @@ async function loadResults() {
 let _isAuthorized = false
 
 async function initAuth() {
-  // 已經驗證過的結果先用快取（存 8 小時），避免每次重開都要重新跑一次跳轉登入流程
-  const cachedRaw = localStorage.getItem('lark_auth')
-  if (cachedRaw) {
-    try {
-      const cached = JSON.parse(cachedRaw)
-      if (cached._cachedAt && Date.now() - cached._cachedAt < 8 * 60 * 60 * 1000) {
-        applyAuthResult(cached)
-        return
-      }
-    } catch(e) {}
-    localStorage.removeItem('lark_auth')
+  // 已經驗證過的結果先用快取，避免每次切換都重新跑一次登入流程
+  const cached = sessionStorage.getItem('lark_auth')
+  if (cached) {
+    applyAuthResult(JSON.parse(cached))
+    return
   }
 
   const urlParams = new URLSearchParams(window.location.search)
@@ -1288,13 +1497,7 @@ async function initAuth() {
     })
     const data = await res.json()
     if (data.error) throw new Error(data.error)
-    if (data.authorized) {
-      // 只快取「有權限」的結果；沒有權限時不快取，避免誤判被存住，下次重新整理就能重新檢查
-      data._cachedAt = Date.now()
-      localStorage.setItem('lark_auth', JSON.stringify(data))
-    } else {
-      localStorage.removeItem('lark_auth')
-    }
+    sessionStorage.setItem('lark_auth', JSON.stringify(data))
     // 清掉網址上的 code 參數，避免殘留
     window.history.replaceState({}, '', window.location.pathname)
     applyAuthResult(data)
@@ -1306,12 +1509,6 @@ async function initAuth() {
 
 function applyAuthResult(data) {
   _isAuthorized = !!data.authorized
-  const badgeEl = document.getElementById('nav-user-badge')
-  if (badgeEl) {
-    const name = data.name || ''
-    badgeEl.textContent = name ? name.charAt(0) : '我'
-    badgeEl.title = name || ''
-  }
   if (!_isAuthorized) {
     // 沒有權限：隱藏其他三個分頁的導覽按鈕
     document.querySelectorAll('.nav-tab').forEach((btn, idx) => {
