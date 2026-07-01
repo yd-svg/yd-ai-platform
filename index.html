@@ -816,7 +816,7 @@ function renderProjectList() {
   const pageItems = projects.slice(_projectPage * PROJECTS_PER_PAGE, _projectPage * PROJECTS_PER_PAGE + PROJECTS_PER_PAGE)
 
   listEl.innerHTML = pageItems.map(p => `
-    <div class="project-item${_selectedProject?.record_id === p.record_id ? ' active' : ''}" onclick="selectProject(${JSON.stringify(p).replace(/"/g,'&quot;')})">
+    <div class="project-item${_selectedProject?.record_id === p.record_id ? ' active' : ''}" data-project-id="${escAttr(p.record_id)}" onclick="selectProjectById(this.dataset.projectId)">
       <div style="font-size:14px;font-weight:500;margin-bottom:6px;">${p.fields['專案名稱'] || ''}</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;">
         ${p.fields['目前階段'] ? badge(p.fields['目前階段']) : ''}
@@ -1014,6 +1014,11 @@ function renderGantt(projects) {
           <div style="font-size:11px;color:#9CA3AF;margin-top:2px;">${proj ? fieldText(proj.fields['專案名稱']) : ''} · 逾期 ${days} 天</div>
         </div>`
     }).join('')}`
+}
+
+function selectProjectById(id) {
+  const p = _projectsCache.find(x => x.record_id === id)
+  if (p) selectProject(p)
 }
 
 function selectProject(p) {
