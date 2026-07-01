@@ -505,6 +505,10 @@ function escAttr(s) {
   return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
 }
 
+function escHtml(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
 // ═══════════════════════════════════════════════════
 // 頁面切換
 // ═══════════════════════════════════════════════════
@@ -763,6 +767,68 @@ let _projectView = 'list'
 let _projectPage = 0
 let _projectsCache = []
 const PROJECTS_PER_PAGE = 5
+const PM_CACHE_KEY = 'yd-ai-pm-cache-v1'
+let _projectListBound = false
+
+function sortProjects(projects) {
+  let list = projects.slice().sort((a, b) => {
+    const at = a.created_time || 0
+    const bt = b.created_time || 0
+    if (at !== bt) return bt - at
+    return 0
+  })
+  if (!list.some(p => p.created_time)) list = list.slice().reverse()
+  return list
+}
+
+function applyProjectsPayload(payload) {
+  _projectsCache = sortProjects(payload.projects || [])
+  _allTasks = payload.tasks || []
+}
+
+function writePmCache() {
+  try {
+    sessionStorage.setItem(PM_CACHE_KEY, JSON.stringify({
+      ok: true,
+      ts: Date.now(),
+      projects: _projectsCache,
+      tasks: _allTasks,
+    }))
+  } catch (e) {}
+}
+
+async function fetchProjectsPayload() {
+  const res = await fetch('/api/bootstrap')
+  const d = await res.json()
+  if (d.error) throw new Error(d.error)
+  if (!d.ok) throw new Error('載入失敗')
+  return d
+}
+
+function bindProjectListEvents() {
+  const listEl = document.getElementById('project-list')
+  if (!listEl || _projectListBound) return
+  _projectListBound = true
+  listEl.addEventListener('click', function(e) {
+    const item = e.target.closest('.project-item')
+    if (!item) return
+    const id = item.getAttribute('data-project-id')
+    if (id) selectProjectById(id)
+  })
+}
+
+function renderProjectsUI() {
+  renderProjectList()
+  bindProjectListEvents()
+  if (_projectView === 'gantt') renderGantt(_projectsCache)
+  if (_selectedProject) {
+    const updated = _projectsCache.find(p => p.record_id === _selectedProject.record_id)
+    if (updated) {
+      _selectedProject = updated
+      renderTaskPanel(updated)
+    }
+  }
+}
 
 function setProjectView(view) {
   _projectView = view
@@ -775,31 +841,35 @@ function setProjectView(view) {
   if (view === 'gantt') renderGantt(_projectsCache)
 }
 
-async function loadProjects() {
+async function loadProjects(opts) {
+  opts = opts || {}
   const listEl = document.getElementById('project-list')
-  listEl.innerHTML = '<div class="spinner"></div>'
+  let usedCache = false
+
+  if (!opts.skipCache) {
+    try {
+      const raw = sessionStorage.getItem(PM_CACHE_KEY)
+      if (raw) {
+        applyProjectsPayload(JSON.parse(raw))
+        renderProjectsUI()
+        usedCache = true
+      }
+    } catch (e) {}
+  }
+
+  if (!usedCache && !opts.silent) {
+    listEl.innerHTML = '<div class="spinner"></div>'
+  }
+
   try {
-    let projects = await listRecords(CONFIG.tables.projects, { page_size: 100 })
-    _allTasks = await listRecords(CONFIG.tables.tasks, { page_size: 500 })
-
-    // 依「最新」排序：優先用 Lark 紀錄的建立時間（created_time），沒有的話用清單回傳順序反轉（API 預設由舊到新）
-    projects = projects.slice().sort((a, b) => {
-      const at = a.created_time || 0, bt = b.created_time || 0
-      if (at !== bt) return bt - at
-      return 0
-    })
-    if (!projects.some(p => p.created_time)) projects = projects.slice().reverse()
-
-    _projectsCache = projects
-    renderProjectList()
-    if (_projectView === 'gantt') renderGantt(projects)
-
-    if (_selectedProject) {
-      const updated = projects.find(p => p.record_id === _selectedProject.record_id)
-      if (updated) renderTaskPanel(updated)
+    const payload = await fetchProjectsPayload()
+    sessionStorage.setItem(PM_CACHE_KEY, JSON.stringify(payload))
+    applyProjectsPayload(payload)
+    renderProjectsUI()
+  } catch (e) {
+    if (!usedCache) {
+      listEl.innerHTML = `<div class="empty" style="color:#DC2626;">載入失敗：${escHtml(e.message)}</div>`
     }
-  } catch(e) {
-    listEl.innerHTML = `<div class="empty" style="color:#DC2626;">載入失敗：${e.message}</div>`
   }
 }
 
@@ -816,8 +886,8 @@ function renderProjectList() {
   const pageItems = projects.slice(_projectPage * PROJECTS_PER_PAGE, _projectPage * PROJECTS_PER_PAGE + PROJECTS_PER_PAGE)
 
   listEl.innerHTML = pageItems.map(p => `
-    <div class="project-item${_selectedProject?.record_id === p.record_id ? ' active' : ''}" data-project-id="${escAttr(p.record_id)}" onclick="selectProjectById(this.dataset.projectId)">
-      <div style="font-size:14px;font-weight:500;margin-bottom:6px;">${p.fields['專案名稱'] || ''}</div>
+    <div class="project-item${_selectedProject?.record_id === p.record_id ? ' active' : ''}" data-project-id="${escAttr(p.record_id)}">
+      <div style="font-size:14px;font-weight:500;margin-bottom:6px;">${escHtml(p.fields['專案名稱'] || '')}</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;">
         ${p.fields['目前階段'] ? badge(p.fields['目前階段']) : ''}
         ${p.fields['優先度'] ? badge(p.fields['優先度']) : ''}
@@ -1105,6 +1175,7 @@ async function confirmProjectHeaderSave() {
     }
     _taskProjectName = name
     renderProjectList()
+    writePmCache()
     renderTaskPanel(_selectedProject)
   } catch (e) {
     alert('儲存失敗：' + e.message)
@@ -1153,7 +1224,7 @@ function renderTaskPanel(p) {
                 ${f['預計開始日期'] ? `<span>開始：${fmtDate(f['預計開始日期'])}</span>` : ''}
                 ${f['預計完成日期'] ? `<span>完成：${fmtDate(f['預計完成日期'])}</span>` : ''}
               </div>` : ''}
-            ${f['風險/卡關'] ? `<div style="margin-top:10px;background:#FEF2F2;color:#DC2626;font-size:12px;padding:8px 12px;border-radius:8px;">⚠ ${f['風險/卡關']}</div>` : ''}
+            ${f['風險/卡關'] ? `<div style="margin-top:10px;background:#FEF2F2;color:#DC2626;font-size:12px;padding:8px 12px;border-radius:8px;">⚠ ${escHtml(f['風險/卡關'])}</div>` : ''}
           </div>
           <button class="btn btn-primary" onclick="openTaskModal('${p.record_id}')">+ 新增任務</button>
         </div>
@@ -1420,6 +1491,7 @@ async function submitTask() {
     }
     closeModal('task-modal')
     _allTasks = await listRecords(CONFIG.tables.tasks, { page_size: 500 })
+    writePmCache()
     if (_selectedProject) renderTaskPanel(_selectedProject)
   } catch (e) {
     errEl.textContent = '新增失敗：' + e.message
