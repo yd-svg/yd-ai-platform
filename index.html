@@ -819,14 +819,29 @@ function writePmCache() {
   } catch (e) {}
 }
 
-function recordsForProject(records, projectId, projectName, linkField) {
-  return records.filter(r => {
-    const linked = r.fields[linkField]
-    if (!linked) return false
-    if (Array.isArray(linked)) return linked.some(l => l.record_id === projectId || l.text === projectName)
-    if (typeof linked === 'string') return linked === projectName
+function linkMatchesProject(linked, projectId, projectName) {
+  if (!linked) return false
+  if (typeof linked === 'string') return linked === projectName
+  if (!Array.isArray(linked)) return false
+  return linked.some(l => {
+    if (!l || typeof l !== 'object') return false
+    if (l.record_id === projectId) return true
+    if (l.text === projectName) return true
+    if (Array.isArray(l.record_ids) && l.record_ids.includes(projectId)) return true
+    if (Array.isArray(l.text_arr) && l.text_arr.includes(projectName)) return true
     return false
   })
+}
+
+function projectLinkValue(record, linkField) {
+  const f = record.fields || {}
+  if (linkField && f[linkField]) return f[linkField]
+  if (linkField === '所屬專案' && f['所數專案']) return f['所數專案']
+  return linkField ? f[linkField] : (f['所屬專案'] || f['所數專案'])
+}
+
+function recordsForProject(records, projectId, projectName, linkField) {
+  return records.filter(r => linkMatchesProject(projectLinkValue(r, linkField), projectId, projectName))
 }
 
 async function fetchProjectsPayload() {
@@ -979,13 +994,7 @@ function g2Shift(d) { g2Off += d; g2UpdateLabel(); renderGantt(_projectsCache) }
 function g2Today() { g2Off = 0; g2UpdateLabel(); renderGantt(_projectsCache) }
 
 function getProjectTasks(p) {
-  return _allTasks.filter(t => {
-    const linked = t.fields['所屬專案']
-    if (!linked) return false
-    if (Array.isArray(linked)) return linked.some(l => l.record_id === p.record_id || l.text === p.fields['專案名稱'])
-    if (typeof linked === 'string') return linked === p.fields['專案名稱']
-    return false
-  })
+  return _allTasks.filter(t => linkMatchesProject(projectLinkValue(t, '所屬專案'), p.record_id, p.fields['專案名稱']))
 }
 
 function renderGantt(projects) {
